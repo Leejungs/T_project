@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>회원가입 | 양동이</title>
+<style>
+  :root{--brand:#1E4DA1; --bg:#f0f2f5; --card:#fff; --muted:#6b7280; --shadow:0 12px 28px rgba(0,0,0,.08);}
+  *{box-sizing:border-box}
+  body{margin:0; font-family:'Noto Sans KR',sans-serif; background:var(--bg);}
+  .container{max-width:1100px; margin:60px auto; background:var(--card); border-radius:20px; box-shadow:var(--shadow); overflow:hidden; display:grid; grid-template-columns:1.1fr 1fr;}
+  .left{background:linear-gradient(135deg,#18428d,#2b73f0); color:#fff; padding:40px; position:relative;}
+  .left h1{font-size:44px; margin:0 0 6px}
+  .left p{margin:0; opacity:.95}
+  .left img{position:absolute; right:-10px; bottom:-10px; width:380px; pointer-events:none}
+  .right{padding:40px 36px; background:#fff}
+  .title{font-size:22px; font-weight:800; margin-bottom:14px}
+  .muted{color:var(--muted); font-size:14px; margin-bottom:18px}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .grid .full{grid-column:1/-1}
+  label{display:block; font-size:13px; margin:6px 2px}
+  input,select{width:100%; padding:14px; border:1px solid #e5e7eb; border-radius:10px; font-size:15px}
+  .actions{display:flex; gap:10px; margin-top:16px}
+  .btn{flex:1; padding:14px; border:none; border-radius:10px; font-weight:700; cursor:pointer}
+  .primary{background:#1E4DA1; color:#fff}
+  .secondary{background:#eef2ff; color:#1E4DA1}
+  .error{color:#b10017; font-size:13px; margin-top:8px; display:none}
+  .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#111827; color:#fff; padding:10px 14px; border-radius:10px; font-size:14px; display:none}
+  @media (max-width:960px){ .container{grid-template-columns:1fr} .left{min-height:220px}}
+</style>
+</head>
+<body>
+  <div class="container">
+    <section class="left">
+      <h1>회원가입</h1>
+      <p>동양미래대학교 계정 흐름과 동일하게, 전시 환경에서 동작합니다.</p>
+      <img src="image/yangdongi.png" alt="양동이">
+    </section>
+
+    <section class="right">
+      <div class="title">정보 입력</div>
+      <div class="muted">* 전시용 저장소(LocalStorage)에만 저장됩니다. (실제 학교 시스템과 데이터 연동 없음)</div>
+
+      <div class="grid">
+        <div>
+          <label>아이디(학번/교번)</label>
+          <input id="uid" type="text" placeholder="예) 20231234">
+        </div>
+        <div>
+          <label>역할</label>
+          <select id="role">
+            <option value="student">학생</option>
+            <option value="faculty">교직원</option>
+            <option value="staff">외부인</option>
+          </select>
+        </div>
+
+        <div>
+          <label>이름</label>
+          <input id="name" type="text" placeholder="홍길동">
+        </div>
+        <div>
+          <label>학과</label>
+          <input id="dept" type="text" placeholder="AI소프트웨어학과">
+        </div>
+
+        <div class="full">
+          <label>학교 이메일</label>
+          <input id="email" type="email" placeholder="아이디@dongyang.ac.kr">
+        </div>
+
+        <div>
+          <label>비밀번호</label>
+          <input id="pw" type="password" placeholder="●●●●●●">
+        </div>
+        <div>
+          <label>비밀번호 확인</label>
+          <input id="pw2" type="password" placeholder="●●●●●●">
+        </div>
+      </div>
+
+      <div id="err" class="error">에러 메시지</div>
+
+      <div class="actions">
+        <button class="btn primary" id="submitBtn">가입하기</button>
+        <button class="btn secondary" onclick="location.href='login.html'">로그인으로</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+<script>
+  // 간단 토스트
+  function toast(msg){
+    const t=document.getElementById('toast');
+    t.textContent=msg; t.style.display='block';
+    setTimeout(()=>t.style.display='none',1500);
+  }
+
+  // LocalStorage 유틸
+  function loadUsers(){
+    try{ return JSON.parse(localStorage.getItem('users')||'[]'); }catch{ return []; }
+  }
+  function saveUsers(arr){ localStorage.setItem('users', JSON.stringify(arr)); }
+
+  // 가입 처리
+  document.getElementById('submitBtn').addEventListener('click', ()=>{
+    const uid = document.getElementById('uid').value.trim();
+    const role= document.getElementById('role').value;
+    const name= document.getElementById('name').value.trim();
+    const dept= document.getElementById('dept').value.trim();
+    const email=document.getElementById('email').value.trim();
+    const pw  = document.getElementById('pw').value;
+    const pw2 = document.getElementById('pw2').value;
+
+    const err = document.getElementById('err');
+    err.style.display='none';
+
+    // 기본 검증
+    if(!uid || !name || !email || !pw || !pw2){
+      err.textContent='필수 항목을 모두 입력해 주세요.'; err.style.display='block'; return;
+    }
+    if(pw!==pw2){ err.textContent='비밀번호가 일치하지 않습니다.'; err.style.display='block'; return; }
+
+    // 아이디 중복 체크
+    const users = loadUsers();
+    if(users.some(u=>u.uid===uid)){
+      err.textContent='이미 존재하는 아이디입니다.'; err.style.display='block'; return;
+    }
+
+    // 저장 (전시용: 평문 저장)  ※ 실서비스는 반드시 서버에서 해시/암호화 필요
+    users.push({ uid, role, name, dept, email, password: pw });
+    saveUsers(users);
+
+    toast('가입이 완료되었습니다. 로그인 화면으로 이동합니다.');
+    setTimeout(()=> location.href='login.html', 900);
+  });
+</script>
+</body>
+</html>

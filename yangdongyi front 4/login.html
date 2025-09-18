@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>양동이 챗봇 로그인</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Noto Sans KR', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #f0f2f5;
+    }
+
+    .container {
+      display: flex;
+      width: 1500px;
+      height: 700px;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      overflow: hidden;
+      position: relative; /* ⭐ 로고 absolute 배치를 위해 추가 */
+    }
+
+    .logo-top {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 270px;
+    }
+
+    .left {
+      flex: 0.7;
+      background-color: #1E4DA1;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: left;
+      padding: 40px;
+      position: relative;
+    }
+
+    .left h1 {
+      font-size: 50px;
+      margin-bottom: 5px;
+      text-align: left;
+    }
+
+    .left p {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .character-center {
+      position: absolute;
+      top: 50%;
+      left: 48.4%;
+      transform: translate(-50%, -50%);
+      width: 1300px;
+      pointer-events: none;
+    }
+
+    .right {
+      flex: 1;
+      display: flex;
+      justify-content: right;
+      align-items: center;
+      background: #f9f9f9;
+    }
+    .login-box {
+      margin-left: 300px;
+    }
+    .login-box h2 {
+      margin-bottom: 10px;
+      text-align: left;
+    }
+
+    .login-box input {
+      width: 60%;
+      padding: 14px;
+      margin-bottom: 4px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      height: 8px;
+    }
+
+    .login-box button {
+      width: 65.5%;
+      padding: 14px;
+      border: none;
+      background: #1E4DA1;
+      color: white;
+      font-size: 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 6px;
+      height: 47px;
+    }
+
+    .login-box button:hover {
+      background: #163a78;
+    }
+
+    .signup {
+      margin-top: 10px;
+      font-size: 14px;
+      text-align: left;
+    }
+
+    .signup a {
+      color: #1E4DA1;
+      text-decoration: none;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="image/logo.png" alt="동양미래대학교 로고" class="logo-top">
+    <!-- 왼쪽 영역 -->
+    <div class="left">
+      <h1>Welcome<br>Back!</h1>
+      <p>We’re glad to see you again.</p>
+    </div>
+
+    <!-- 오른쪽 로그인 박스 -->
+    <div class="right">
+      <div class="login-box">
+        <h2>로그인</h2>
+        <input type="text" placeholder="ID">
+        <input type="password" placeholder="Password">
+        
+        <!-- 회원 로그인 버튼 -->
+        <button onclick="location.href='main.html'">로그인</button>
+        
+        <!-- ⭐ 비회원 로그인 버튼 추가 -->
+        <button onclick="guestLogin()" style="background:#6b7280;">비회원 로그인</button>
+
+        <div class="signup">
+          계정이 없으신가요? <a href="signup.html">회원가입</a>을 눌러주세요!
+        </div>
+      </div>
+    </div>
+    <img src="image/yangdongi.png" alt="양동이 중앙" class="character-center">
+  </div>
+
+  <script>
+    function guestLogin(){
+      localStorage.setItem("isGuest", "true");
+      localStorage.removeItem("isLoggedIn"); // 회원 로그인 상태 제거
+      window.location.href = "main.html";
+    }
+  </script>
+</body>
+</html>
