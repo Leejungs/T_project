@@ -25,6 +25,7 @@ T_project/
 │       └── requirements.txt     # Python 의존성 (옵션)
 ├── README.md                    # 프로젝트 설명 문서
 └── .gitignore                   # Git에 올리지 않을 파일 목록 (.env 포함)
+```plaintext
 
 ---
 
