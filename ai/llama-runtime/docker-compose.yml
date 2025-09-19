@@ -2,28 +2,31 @@
 
 services:
   vllm:
-    image: vllm/vllm-openai:latest
+    image: vllm/vllm-openai:cpu   # ★ CPU 전용 이미지
     container_name: vllm
-    # Windows/WSL 환경에서 아키텍처 헷갈릴 때 안전장치:
     platform: linux/amd64
     ports:
       - "${LLM_API_PORT:-8000}:8000"
     environment:
       - HF_TOKEN=${HF_TOKEN}
-    command: >
-      --model ${LLM_MODEL}
-      --host 0.0.0.0
-      --max-model-len 8192
-      --dtype auto
-      --tensor-parallel-size 1
-    # GPU 없으면 아래 블록 삭제(또는 우선 주석 처리) 후 CPU로 테스트 가능
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - capabilities: [gpu]
-    # pull 동작을 명확히
+      - VLLM_LOGGING_LEVEL=DEBUG
+    # ★ 명령을 '배열'로 명시 (중요)
+    command: [
+      "--model", "${LLM_MODEL}",
+      "--host", "0.0.0.0",
+      "--device", "cpu",
+      "--max-model-len", "4096",
+      "--dtype", "auto",
+      "--tensor-parallel-size", "1"
+    ]
+    # GPU 섹션은 지금 주석/삭제 (CPU로 먼저 성공 확인)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - capabilities: [gpu]
     pull_policy: always
+
 
 # 실행
 # docker compose up -d
