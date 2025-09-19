@@ -1,0 +1,23 @@
+# vLLM 컨테이너 정의
+
+version: "3.9"
+services:
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: vllm
+    ports:
+      - "${LLM_API_PORT}:8000"
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+    command: >
+      --model ${LLM_MODEL}
+      --host 0.0.0.0
+      --max-model-len 8192
+      --dtype auto
+      --tensor-parallel-size 1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    # GPU 없는 환경이면 위 deploy 블록 제거하고 CPU로도 가능(느림)
