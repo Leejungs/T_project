@@ -8,20 +8,23 @@ vLLM 로컬 서버 테스트 스크립트
 ============================================================
 """
 
-import openai
+# vLLM(OpenAI 호환) 로컬 서버로 채팅 테스트
+from openai import OpenAI
 
-# vLLM 서버 설정
-openai.api_base = "http://localhost:8000/v1"   # 로컬 vLLM 서버 주소
-openai.api_key = "EMPTY"   # 로컬 vLLM은 API 키 필요 없음
+# vLLM 서버 주소/키 설정
+client = OpenAI(
+    base_url="http://localhost:8000/v1",
+    api_key="EMPTY",  # vLLM은 임의 문자열이면 됩니다
+)
 
 def chat(prompt: str):
-    """사용자 입력(prompt)을 vLLM 서버에 전달하고 응답 출력"""
-    response = openai.ChatCompletion.create(
-        model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",   # 실행 중인 모델 이름
+    resp = client.chat.completions.create(
+        model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",  # compose와 정확히 동일해야 함
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=200
+        max_tokens=128,
+        temperature=0.7,
     )
-    print("Assistant:", response["choices"][0]["message"]["content"])
+    print("Assistant:", resp.choices[0].message.content)
 
 if __name__ == "__main__":
-    chat("자기소개 ㄱ")
+    chat("안녕! 간단히 자기소개해줘.")

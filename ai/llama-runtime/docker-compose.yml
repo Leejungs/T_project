@@ -12,15 +12,21 @@
 #        docker compose down
 # ============================================================
 
-version: "3.8"
-
 services:
   vllm:
     image: vllm/vllm-openai:latest
     ports:
-      - "8000:8000"   # 로컬 8000 포트로 API 접근
+      - "8000:8000"
     environment:
-      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}   # Hugging Face 토큰 사용
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN}
+      VLLM_LOGGING_LEVEL: DEBUG          # 문제 시 원인 파악 도움
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
     command: >
       --host 0.0.0.0
       --model TinyLlama/TinyLlama-1.1B-Chat-v1.0
