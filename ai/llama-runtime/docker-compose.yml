@@ -2,31 +2,27 @@
 
 services:
   vllm:
-    image: vllm/vllm-openai:cpu   # ★ CPU 전용 이미지
+    image: vllm/vllm-openai:latest
     container_name: vllm
-    platform: linux/amd64
     ports:
       - "${LLM_API_PORT:-8000}:8000"
     environment:
       - HF_TOKEN=${HF_TOKEN}
-      - VLLM_LOGGING_LEVEL=DEBUG
-    # ★ 명령을 '배열'로 명시 (중요)
+    # ← 윈도우에서 옵션 누락 방지용으로 '배열' 형식 사용
     command: [
       "--model", "${LLM_MODEL}",
       "--host", "0.0.0.0",
-      "--device", "cpu",
-      "--max-model-len", "4096",
+      "--max-model-len", "2048",
+      "--gpu-memory-utilization", "0.70",
       "--dtype", "auto",
       "--tensor-parallel-size", "1"
     ]
-    # GPU 섹션은 지금 주석/삭제 (CPU로 먼저 성공 확인)
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - capabilities: [gpu]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
     pull_policy: always
-
 
 # 실행
 # docker compose up -d
@@ -37,3 +33,4 @@ services:
 # T_project 말고
 # cd C:\Users\user\Documents\Github\T_project\ai\llama-runtime
 # 위 경로에서 실행해야 함
+

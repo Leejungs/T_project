@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+
+# env files
+*.env
+.env
+ai/llama-runtime/.env
+
+# VSCode
+.vscode/

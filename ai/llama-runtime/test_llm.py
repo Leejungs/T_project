@@ -1,24 +1,22 @@
-# 모델 연결 테스트 스크립트
+import openai
 
-import os, requests, json
+# vLLM 서버 설정
+openai.api_base = "http://localhost:8000/v1"
+openai.api_key = "EMPTY"   # 로컬 vLLM은 API 키 필요 없음
 
-API_BASE = f"http://localhost:{os.getenv('LLM_API_PORT', '8000')}/v1"
-MODEL = os.getenv("LLM_MODEL", "meta-llama/Llama-3.1-8B-Instruct")
-
-def chat(msg):
-    url = f"{API_BASE}/chat/completions"
-    payload = {
-        "model": MODEL,
-        "messages": [
-            {"role":"system","content":"너는 동양미래대학교 학사 도우미야. 모든 날짜는 YYYY-MM-DD로 말해."},
-            {"role":"user","content": msg}
-        ],
-        "max_tokens": 200,
-        "temperature": 0.2
-    }
-    r = requests.post(url, json=payload, timeout=120)
-    r.raise_for_status()
-    print(json.dumps(r.json(), ensure_ascii=False, indent=2))
+def chat(prompt: str):
+    response = openai.ChatCompletion.create(
+        model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",   # 실행 중인 모델 이름
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=200
+    )
+    print("Assistant:", response["choices"][0]["message"]["content"])
 
 if __name__ == "__main__":
-    chat("안녕! 간단히 자기소개해줘.")
+    chat("자기소개 ㄱ")
+
+
+r'''
+cd C:\Users\user\Documents\Github\T_project\ai\llama-runtime
+python test_llm.py
+'''
