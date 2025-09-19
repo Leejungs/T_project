@@ -1,12 +1,13 @@
 # vLLM 컨테이너 정의
 
-version: "3.9"
 services:
   vllm:
     image: vllm/vllm-openai:latest
     container_name: vllm
+    # Windows/WSL 환경에서 아키텍처 헷갈릴 때 안전장치:
+    platform: linux/amd64
     ports:
-      - "${LLM_API_PORT}:8000"
+      - "${LLM_API_PORT:-8000}:8000"
     environment:
       - HF_TOKEN=${HF_TOKEN}
     command: >
@@ -15,9 +16,21 @@ services:
       --max-model-len 8192
       --dtype auto
       --tensor-parallel-size 1
+    # GPU 없으면 아래 블록 삭제(또는 우선 주석 처리) 후 CPU로 테스트 가능
     deploy:
       resources:
         reservations:
           devices:
             - capabilities: [gpu]
-    # GPU 없는 환경이면 위 deploy 블록 제거하고 CPU로도 가능(느림)
+    # pull 동작을 명확히
+    pull_policy: always
+
+# 실행
+# docker compose up -d
+
+# 로그 보기 (서버가 모델 다운로드/로드 중이면 시간이 조금 걸림)
+# docker compose logs -f
+
+# T_project 말고
+# cd C:\Users\user\Documents\Github\T_project\ai\llama-runtime
+# 위 경로에서 실행해야 함
