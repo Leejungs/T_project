@@ -15,15 +15,16 @@
 
 ## 📂 폴더 & 파일 구조
 
+```plaintext
 T_project/
 ├── ai/
-│ └── llama-runtime/
-│ ├── docker-compose.yml # vLLM 서버 실행 설정
-│ ├── .env # Hugging Face Token 등 환경 변수 (Git에 공유 X)
-│ ├── test_llm.py # 로컬 vLLM 서버 테스트 스크립트
-│ └── requirements.txt # Python 의존성 (옵션)
-├── README.md # 프로젝트 설명 문서
-└── .gitignore # Git에 올리지 않을 파일 목록 (.env 포함)
+│   └── llama-runtime/
+│       ├── docker-compose.yml   # vLLM 서버 실행 설정
+│       ├── .env                 # Hugging Face Token 등 환경 변수 (Git에 공유 X)
+│       ├── test_llm.py          # 로컬 vLLM 서버 테스트 스크립트
+│       └── requirements.txt     # Python 의존성 (옵션)
+├── README.md                    # 프로젝트 설명 문서
+└── .gitignore                   # Git에 올리지 않을 파일 목록 (.env 포함)
 
 ---
 
