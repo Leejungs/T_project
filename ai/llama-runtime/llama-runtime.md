@@ -1,6 +1,4 @@
-# 🚀 LLaMA Runtime with vLLM (로컬 LLM 서버)
-
-## 📌 오늘 해낸 작업 (약 6시간)
+## 📌 2025/09/20
 - **WSL2 + Ubuntu 설치 및 환경 세팅**
 - **Docker Desktop + NVIDIA GPU 연동**
 - **vLLM 서버 실행 성공**
