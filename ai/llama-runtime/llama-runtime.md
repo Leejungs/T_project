@@ -25,7 +25,7 @@ T_project/
 │       └── requirements.txt     # Python 의존성 (옵션)
 ├── README.md                    # 프로젝트 설명 문서
 └── .gitignore                   # Git에 올리지 않을 파일 목록 (.env 포함)
-```plaintext
+```
 
 ---
 
@@ -51,3 +51,43 @@ T_project/
   - `.env`  
   - `__pycache__/`  
   - `*.pyc`  
+
+---
+
+## 🚀 실행 순서
+
+### 1. 프로젝트 클론 & 진입
+```bash
+git clone <repo-url>
+cd T_project/ai/llama-runtime
+```
+
+### 2. 환경 변수 설정
+- .env 파일 생성 후, .env.example 파일을 내용 복사
+```bash
+echo "HF_TOKEN=your_huggingface_token" > .env
+```
+
+### 3. Docker로 vLLM 서버 실행
+```bash
+docker compose up -d --build
+docker compose logs -f
+```
+
+### 4. Python 패키지 설치 (로컬 테스트용)
+```bash
+pip install -r requirements.txt
+```
+
+### 5. 로컬 API 테스트 실행
+```bash
+cd T_project/ai/llama-runtime
+python test_llm.py
+```
+
+### 6. 동작 확인
+- 터미널에 AI 모델 응답이 출력되면 성공
+- 서버 중지
+```bash
+docker compose down
+```
