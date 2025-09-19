@@ -27,4 +27,4 @@ def chat(prompt: str):
     print("Assistant:", resp.choices[0].message.content)
 
 if __name__ == "__main__":
-    chat("안녕! 간단히 자기소개해줘.")
+    chat("소개 ㄱ")
