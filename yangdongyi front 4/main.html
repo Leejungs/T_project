@@ -13,7 +13,6 @@
     --sbw:260px;
     --assist-shift: 120px;
   }
-
   *{box-sizing:border-box}
   html,body{height:100%}
   body{
@@ -46,10 +45,7 @@
   .sb-bottom .role{font-size:12px; opacity:.9}
 
   /* ===== Main ===== */
-  .main{
-    min-height:100vh; display:flex; flex-direction:column;
-    margin-left:var(--sbw); transition:margin-left .25s ease;
-  }
+  .main{ min-height:100vh; display:flex; flex-direction:column; margin-left:var(--sbw); transition:margin-left .25s ease; }
   body.sidebar-closed .main{ margin-left:0; }
 
   .topbar{
@@ -84,19 +80,18 @@
   .tile .ic{width:56px; height:56px; border-radius:14px; display:grid; place-items:center; background:#e9f1ff; font-size:22px;}
   .tile .txt .k{font-weight:750}
   .tile .txt .s{font-size:13px; color:var(--muted); margin-top:2px}
-
-  /* 🔗 타일을 링크로 쓸 때 스타일 유지 */
   a.tile{ display:flex; text-decoration:none; color:inherit; }
 
-  /* ===== Assistant (양동이 + 채팅바) ===== */
+  /* ===== Assistant ===== */
   .assistant-wrap{
     position: fixed; bottom: 100px;
     left: calc(var(--sbw) + (100vw - var(--sbw)) / 2 - var(--assist-shift));
     transform: translateX(-50%); display:flex; align-items:flex-end; gap:0; z-index:40;
+    pointer-events:none;
   }
   body.sidebar-closed .assistant-wrap{ left: calc(50% - var(--assist-shift)); transform: translateX(-50%); }
   .yang-stand{ width:400px; height:400px; object-fit:contain; filter:drop-shadow(0 12px 18px rgba(0,0,0,.22)); pointer-events:none; position:relative; top:100px; }
-  .assistant-bar{ position:relative; height:64px; display:grid; grid-template-columns:120px 1fr 100px; align-items:center; gap:12px; background:#3c4250; color:#fff; border-radius:28px; padding:10px 12px; box-shadow:0 14px 30px rgba(0,0,0,.24); margin-left:-100px; width:min(860px, calc((100vw - var(--sbw)) - 300px - 70px)); transition:width .25s ease, margin-left .2s ease; }
+  .assistant-bar{ position:relative; height:64px; display:grid; grid-template-columns:120px 1fr 100px; align-items:center; gap:12px; background:#3c4250; color:#fff; border-radius:28px; padding:10px 12px; box-shadow:0 14px 30px rgba(0,0,0,.24); margin-left:-100px; width:min(860px, calc((100vw - var(--sbw)) - 300px - 70px)); transition:width .25s ease, margin-left .2s ease; pointer-events:auto; }
   .assistant-bar::after{ content:""; position:absolute; left:-10px; bottom:30px; width:18px; height:18px; background:#3c4250; transform:rotate(45deg); border-radius:3px; box-shadow:0 6px 12px rgba(0,0,0,.18); }
   body.sidebar-closed .assistant-bar{ width:min(960px, calc(100vw - 300px - 70px)); }
   .chip-icon{ width:40px; height:40px; border:none; border-radius:10px; background:rgba(255,255,255,.12); color:#fff; cursor:pointer; margin-right:6px; }
@@ -116,8 +111,6 @@
     .assistant-wrap{ left:50%; bottom:90px; transform:translateX(-50%); }
     .assistant-bar{ margin-left:0; width:min(92vw, 760px); grid-template-columns:90px 1fr 90px; }
   }
-
-  /* Twemoji 크기 조정 */
   .sb-item .icon img.emoji{ width:16px; height:16px; display:block; }
   .tile .ic img.emoji{ width:28px; height:28px; display:block; }
   .chip-icon img.emoji, .mic img.emoji{ width:20px; height:20px; display:block; margin:0 auto; }
@@ -137,9 +130,14 @@
       <a class="sb-item" href="#"><span class="icon">📚</span><span>도서관</span></a>
       <a class="sb-item" href="#"><span class="icon">⚙️</span><span>설정</span></a>
     </nav>
-    <div class="sb-bottom">
+
+    <!-- #️⃣ 사용자 정보가 채워질 영역 -->
+    <div class="sb-bottom" id="userBox">
       <img src="image/user.png" alt="사용자">
-      <div class="info"><div><strong>홍길동</strong></div><div class="role">학생 · AI소프트웨어</div></div>
+      <div class="info">
+        <div><strong id="userName">로그인이 필요합니다</strong></div>
+        <div class="role" id="userMeta">-</div>
+      </div>
     </div>
   </aside>
 
@@ -150,14 +148,18 @@
         <button class="sb-toggle" id="toggleBtn">☰</button>
         <div class="title">양동이 챗봇 1.0 </div>
       </div>
-      <div class="right"><span class="muted" id="todayText"></span><button id="authBtn" class="auth-btn"></button></div>
+
+      <!-- #️⃣ 로그인 상태에 따라 숨길 버튼 -->
+      <div class="right">
+        <span class="muted" id="todayText"></span>
+        <button id="authBtn" class="auth-btn"></button>
+      </div>
     </header>
 
     <section class="content">
       <div class="board">
         <div class="panel">
           <div class="tiles">
-            <!-- 🔗 타일을 링크로 변경 -->
             <a href="feature.html?feature=schedule" class="tile">
               <div class="ic">🗓️</div>
               <div class="txt"><div class="k">수업 시간표</div><div class="s">이번 주 수업 및 강의실</div></div>
@@ -185,8 +187,6 @@
           </div>
         </div>
       </div>
-
-      <!-- 아래에 있던 6개 링크 타일은 삭제했습니다 -->
 
       <!-- Assistant -->
       <div class="assistant-wrap">
@@ -233,18 +233,36 @@
       document.getElementById('ask').value='';
     }
 
-    // 로그인/로그아웃 버튼 상태
-    document.addEventListener("DOMContentLoaded", ()=>{
-      const btn = document.getElementById("authBtn");
-      const loggedIn = localStorage.getItem("isLoggedIn") === "true";
-      if(loggedIn){
-        btn.textContent = "로그아웃";
-        btn.onclick = ()=>{ localStorage.removeItem("isLoggedIn"); location.href="login.html"; };
-      } else {
-        btn.textContent = "로그인";
-        btn.onclick = ()=>{ location.href="login.html"; };
+    // #️⃣ 로그인 세션 가져와서 좌하단 정보 표시 + 로그인 버튼 숨김
+    async function hydrateUserUI() {
+      try {
+        const res = await fetch("/api/me", { credentials: "include" });
+        const data = await res.json().catch(()=> ({}));
+
+        const btn = document.getElementById("authBtn");
+        const nameEl = document.getElementById("userName");
+        const metaEl = document.getElementById("userMeta");
+
+          if (res.ok && data.ok && data.user) {
+            const u = data.user;
+            // 좌측 하단 사용자 정보 채우기
+            nameEl.textContent = u.name || "이름 없음";
+            metaEl.innerHTML = `${u.uid || "-"}<br>${u.department || "-"}`;
+
+          // 로그인 버튼 제거(숨김)
+          if (btn) btn.style.display = "none";
+        } else {
+          // 로그인 안 되어 있으면 버튼은 '로그인'으로
+          if (btn) {
+            btn.textContent = "로그인";
+            btn.onclick = ()=> location.href="login.html";
+          }
+        }
+      } catch (e) {
+        console.warn("세션 조회 실패", e);
       }
-    });
+    }
+    hydrateUserUI();
   </script>
 </body>
 </html>
