@@ -25,6 +25,28 @@
     .error{color:#b10017;font-size:13px;margin-top:6px;display:none;width:var(--field-w)}
     .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:10px;font-size:14px;display:none}
     @media (max-width:900px){:root{--field-w:90%}.form-box{margin-left:0}.container{width:95vw;height:auto}.character-center{display:none}}
+
+    @media (max-width: 900px) {
+    :root { --field-w: 90%; }
+    .container {
+      width: 95vw;
+      height: auto;
+      flex-direction: column;
+    }
+    .left {
+      flex: none;
+      width: 100%;
+      text-align: center;
+      padding: 20px;
+    }
+    .left h1 { font-size: 32px; text-align:center; }
+    .left p { font-size: 14px; text-align:center; }
+    .character-center { display: none; }
+    .form-box {
+      margin: 20px auto;
+      width: 90%;
+    }
+  }
   </style>
 </head>
 <body>
@@ -33,7 +55,7 @@
 
     <div class="left">
       <h1>회원가입</h1>
-      <p>동양미래대학교 계정 흐름과 동일하게, 전시 환경에서 동작합니다.</p>
+      <p>동양미래대학교 챗봇 양동이 회원가입 페이지입니다.</p>
     </div>
 
     <div class="right">
@@ -112,7 +134,7 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    const API_BASE = "http://127.0.0.1:8001";
+    const API_BASE = window.location.origin;   // 예: http://192.168.43.138:8001
 
     function toast(msg){
       const t = document.getElementById("toast");

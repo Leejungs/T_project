@@ -236,6 +236,10 @@ def serve_signup():
 def serve_feature():
     return send_from_directory(".", "feature.html")
 
+@app.get("/guest")
+def serve_guest():
+    return send_from_directory(".", "guest.html")
+
 # .html 별칭
 @app.get("/main.html")
 def serve_main_html():
@@ -260,6 +264,10 @@ def serve_signup_html():
 @app.get("/feature.html")
 def serve_feature_html():
     return send_from_directory(".", "feature.html")
+
+@app.get("/guest.html")
+def serve_guest_html():
+    return send_from_directory(".", "guest.html")
 
 @app.get("/favicon.ico")
 def favicon():

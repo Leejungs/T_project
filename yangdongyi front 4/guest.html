@@ -1,18 +1,20 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>양동이 챗봇 메인 페이지</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>양동이 챗봇 메인 (비회원)</title>
 <style>
   :root{
-    --brand:#1565d8; --brand-dark:#0f4aa4;
+    --brand:#9ca3af;       /* 회색 */
+    --brand-dark:#6b7280;  /* 진한 회색 */
     --bg:#f3f6fb; --card:#ffffff;
     --text:#1f2a37; --muted:#6b7280;
     --shadow:0 8px 24px rgba(0,0,0,.06);
     --sbw:260px;
-    --assist-shift: 120px;
+    --assist-shift:120px;
   }
+
   *{box-sizing:border-box}
   html,body{height:100%}
   body{
@@ -25,7 +27,7 @@
     position:fixed; inset:0 auto 0 0; width:var(--sbw); height:100vh;
     background:linear-gradient(180deg,var(--brand),var(--brand-dark));
     color:#fff; display:flex; flex-direction:column; padding:18px 14px;
-    transition:transform .25s ease; z-index:50;
+    transition:transform .25s ease; z-index:100;
   }
   body.sidebar-closed .sidebar{ transform:translateX(-100%); }
 
@@ -51,10 +53,8 @@
   .topbar{
     height:64px; background:#fff; box-shadow:var(--shadow);
     padding:0 16px; display:flex; align-items:center; gap:8px; justify-content:space-between;
-    position: sticky; top:0; z-index:60;
+    position:sticky; top:0; z-index:60;
   }
-  .auth-btn{ padding:6px 12px; border:none; border-radius:8px; cursor:pointer; background:#1565d8; color:#fff; font-weight:600; transition:background .2s ease;}
-  .auth-btn:hover{ background:#0f4aa4; }
   .left-group{display:flex; align-items:center; gap:8px;}
   .sb-toggle{
     border:none; background:transparent; width:40px; height:40px; border-radius:10px;
@@ -63,11 +63,12 @@
   .sb-toggle:hover{background:#eef3ff}
   .topbar .title{font-weight:700; font-size:18px}
   .right{display:flex; align-items:center; gap:12px; color:var(--muted)}
+  .auth-btn{ padding:6px 12px; border:none; border-radius:8px; cursor:pointer; background:#1565d8; color:#fff; font-weight:600; }
 
   .content{flex:1; padding:50px; position:relative;}
   .board{height:100%; display:grid; place-items:center;}
   .panel{
-    width:min(1200px, 92%); margin: 40px auto 200px;
+    width:min(1200px, 92%); margin:40px auto 200px;
     background:#f7faff; border-radius:24px;
     box-shadow:inset 0 10px 18px rgba(0,0,0,.03), 0 18px 40px rgba(23,57,132,.08);
     padding:38px 36px;
@@ -76,87 +77,81 @@
   .tile{
     background:#f9fbff; border-radius:18px; padding:50px; box-shadow:0 3px 0 #e3ecff inset, var(--shadow);
     display:flex; gap:14px; align-items:center; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease;
+    text-decoration:none; color:inherit;
   }
   .tile:hover{transform:translateY(-2px); box-shadow:0 10px 28px rgba(0,0,0,.08)}
   .tile .ic{width:56px; height:56px; border-radius:14px; display:grid; place-items:center; background:#e9f1ff; font-size:22px;}
   .tile .txt .k{font-weight:750}
   .tile .txt .s{font-size:13px; color:var(--muted); margin-top:2px}
-  a.tile{ display:flex; text-decoration:none; color:inherit; }
 
   /* ===== Assistant ===== */
   .assistant-wrap{
-    position: fixed; bottom: 100px;
-    left: calc(var(--sbw) + (100vw - var(--sbw)) / 2 - var(--assist-shift));
-    transform: translateX(-50%); display:flex; align-items:flex-end; gap:0; z-index:40;
-    pointer-events:none;
+    position:fixed; bottom:100px;
+    left:calc(var(--sbw) + (100vw - var(--sbw)) / 2 - var(--assist-shift));
+    transform:translateX(-50%); display:flex; align-items:flex-end; gap:0; z-index:40;
+    pointer-events:none; /* 전체 래퍼는 클릭 무시 */
   }
-  body.sidebar-closed .assistant-wrap{ left: calc(50% - var(--assist-shift)); transform: translateX(-50%); }
-  .yang-stand{ width:400px; height:400px; object-fit:contain; filter:drop-shadow(0 12px 18px rgba(0,0,0,.22)); pointer-events:none; position:relative; top:100px; }
-  .assistant-bar{ position:relative; height:64px; display:grid; grid-template-columns:120px 1fr 100px; align-items:center; gap:12px; background:#3c4250; color:#fff; border-radius:28px; padding:10px 12px; box-shadow:0 14px 30px rgba(0,0,0,.24); margin-left:-100px; width:min(860px, calc((100vw - var(--sbw)) - 300px - 70px)); transition:width .25s ease, margin-left .2s ease; pointer-events:auto; }
-  .assistant-bar::after{ content:""; position:absolute; left:-10px; bottom:30px; width:18px; height:18px; background:#3c4250; transform:rotate(45deg); border-radius:3px; box-shadow:0 6px 12px rgba(0,0,0,.18); }
-  body.sidebar-closed .assistant-bar{ width:min(960px, calc(100vw - 300px - 70px)); }
+  body.sidebar-closed .assistant-wrap{ left:calc(50% - var(--assist-shift)); transform:translateX(-50%); }
+  .yang-stand{
+    width:400px; height:400px; object-fit:contain; filter:drop-shadow(0 12px 18px rgba(0,0,0,.22));
+    position:relative; top:100px; pointer-events:none; /* 이미지도 클릭 무시 */
+  }
+  .assistant-bar{
+    position:relative; height:64px; display:grid; grid-template-columns:120px 1fr 100px; align-items:center; gap:12px;
+    background:#3c4250; color:#fff; border-radius:28px; padding:10px 12px; box-shadow:0 14px 30px rgba(0,0,0,.24);
+    margin-left:-100px; width:min(860px, calc((100vw - var(--sbw)) - 300px - 70px)); transition:width .25s ease, margin-left .2s ease;
+    pointer-events:auto; /* 바만 클릭 가능 */
+  }
+  .assistant-bar::after{
+    content:""; position:absolute; left:-10px; bottom:30px; width:18px; height:18px; background:#3c4250; transform:rotate(45deg); border-radius:3px; box-shadow:0 6px 12px rgba(0,0,0,.18);
+  }
   .chip-icon{ width:40px; height:40px; border:none; border-radius:10px; background:rgba(255,255,255,.12); color:#fff; cursor:pointer; margin-right:6px; }
   .bar-left{display:flex; align-items:center}
   .bar-center input{ width:100%; height:44px; border:none; outline:none; background:rgba(255,255,255,.12); color:#fff; border-radius:12px; padding:0 12px; font-size:14px; }
-  .mic, .send{ width:44px; height:44px; border:none; border-radius:12px; cursor:pointer; }
+  .mic,.send{ width:44px; height:44px; border:none; border-radius:12px; cursor:pointer; }
   .mic{ background:rgba(255,255,255,.12); color:#fff; margin-right:6px; }
   .send{ background:#00a2ff; color:#fff; font-weight:800; }
 
-  /* ====== 태블릿 규칙 ====== */
+  /* ===== Tablet ===== */
   @media (max-width:1100px){
     .tiles{grid-template-columns:repeat(2,1fr)}
     .assistant-wrap{ bottom:110px; }
     .assistant-bar{ grid-template-columns:100px 1fr 88px; }
   }
 
-  /* ====== 모바일 규칙(핵심) ====== */
+  /* ===== Mobile (오버레이 사이드바 + 1열 카드) ===== */
   @media (max-width:768px){
-    :root{ --sbw: 78vw; --assist-shift:0px; }
+    :root{ --sbw:78vw; --assist-shift:0px; }
 
-    /* 사이드바: 기본 접힘(오버레이 모드) */
-    .sidebar{
-      transform: translateX(-100%);
-      z-index:100;
-    }
-    body.sb-open .sidebar{ transform: translateX(0); }
-    /* 배경 딤 */
+    .sidebar{ transform:translateX(-100%); }
+    body.sb-open .sidebar{ transform:translateX(0); }
     .sb-dim{
-      position: fixed; inset:0; background:rgba(0,0,0,.35);
+      position:fixed; inset:0; background:rgba(0,0,0,.35);
       z-index:90; display:none;
     }
     body.sb-open .sb-dim{ display:block; }
 
-    /* 메인 좌여백 제거 */
     .main{ margin-left:0 !important; }
     .content{ padding:16px !important; }
 
-    /* 패널/타일 축소 + 1열 */
     .panel{
       width:100% !important; margin:12px auto 120px !important;
       padding:16px !important; border-radius:14px !important;
-      box-shadow:0 6px 16px rgba(0,0,0,.06) !important; background:#fff !important;
+      background:#fff !important; box-shadow:0 6px 16px rgba(0,0,0,.06) !important;
     }
     .tiles{ grid-template-columns:1fr !important; gap:12px !important; }
     .tile{ padding:16px !important; border-radius:12px !important; }
 
-    /* 캐릭터 숨김 + 채팅바 중앙 */
     .yang-stand{ display:none !important; }
-    .assistant-wrap{
-      left:50% !important; bottom:20px !important; transform:translateX(-50%) !important;
-      z-index:40;
-    }
-    .assistant-bar{
-      margin-left:0 !important;
-      width:min(92vw, 680px) !important;
-      grid-template-columns:90px 1fr 88px !important;
-    }
-    /* 사이드바 열릴 때 채팅바 아래로 */
-    body.sb-open .assistant-wrap{ z-index:10; }
+    .assistant-wrap{ left:50% !important; bottom:20px !important; transform:translateX(-50%) !important; }
+    .assistant-bar{ margin-left:0 !important; width:min(92vw,680px) !important; grid-template-columns:90px 1fr 88px !important; }
+    body.sb-open .assistant-wrap{ z-index:10; } /* 사이드바 위계 우선 */
   }
 
+  /* Twemoji 사이즈 */
   .sb-item .icon img.emoji{ width:16px; height:16px; display:block; }
   .tile .ic img.emoji{ width:28px; height:28px; display:block; }
-  .chip-icon img.emoji, .mic img.emoji{ width:20px; height:20px; display:block; margin:0 auto; }
+  .chip-icon img.emoji,.mic img.emoji{ width:20px; height:20px; display:block; margin:0 auto; }
 </style>
 </head>
 <body class="sidebar-closed">
@@ -173,13 +168,11 @@
       <a class="sb-item" href="#"><span class="icon">📚</span><span>도서관</span></a>
       <a class="sb-item" href="#"><span class="icon">⚙️</span><span>설정</span></a>
     </nav>
-
-    <!-- #️⃣ 사용자 정보가 채워질 영역 -->
-    <div class="sb-bottom" id="userBox">
+    <div class="sb-bottom">
       <img src="image/user.png" alt="사용자">
       <div class="info">
-        <div><strong id="userName">로그인이 필요합니다</strong></div>
-        <div class="role" id="userMeta">-</div>
+        <div><strong>로그인이 필요합니다</strong></div>
+        <div class="role">게스트 모드</div>
       </div>
     </div>
   </aside>
@@ -189,14 +182,11 @@
     <header class="topbar">
       <div class="left-group">
         <button class="sb-toggle" id="toggleBtn">☰</button>
-        <div class="title">양동이 챗봇 1.0 </div>
+        <div class="title">양동이 챗봇 1.0</div>
       </div>
-
-      <!-- #️⃣ 로그인 상태에 따라 숨길 버튼 -->
       <div class="right">
         <span class="muted" id="todayText"></span>
-        <button id="authBtn" class="auth-btn"></button>
-        <button id="logoutBtn" class="auth-btn" style="display:none">로그아웃</button>
+        <button id="authBtn" class="auth-btn">로그인</button>
       </div>
     </header>
 
@@ -251,110 +241,54 @@
     </section>
   </main>
 
-  <!-- 모바일 오버레이 딤 -->
+  <!-- 모바일 사이드바 오버레이 딤 -->
   <div class="sb-dim"></div>
 
   <!-- Twemoji -->
   <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js" crossorigin="anonymous"></script>
-<script>
-  document.addEventListener('DOMContentLoaded', function(){
-    twemoji.parse(document.body, { folder:'svg', ext:'.svg' });
-  });
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      twemoji.parse(document.body, { folder:'svg', ext:'.svg' });
+    });
 
-  // 오늘 날짜
-  (function(){
-    const el=document.getElementById('todayText');
-    const d=new Date(); const w=['일','월','화','수','목','금','토'][d.getDay()];
-    el.textContent=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${w}`;
-  })();
+    // 오늘 날짜
+    (function(){
+      const el=document.getElementById('todayText');
+      const d=new Date(); const w=['일','월','화','수','목','금','토'][d.getDay()];
+      el.textContent=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${w}`;
+    })();
 
-  // Sidebar toggle (데스크톱: 접기/펼치기, 모바일: 오버레이 열기/닫기)
-  const toggleBtn = document.getElementById('toggleBtn');
-  const dim = document.querySelector('.sb-dim');
+    // 모바일/데스크톱 사이드바 열기 동작
+    const toggleBtn=document.getElementById('toggleBtn');
+    const dim=document.querySelector('.sb-dim');
+    const isMobile=()=>window.innerWidth<=768;
 
-  function isMobile(){ return window.innerWidth <= 768; }
-
-  function closeAllSidebars(){
-    document.body.classList.remove('sb-open');     // 모바일 오버레이 닫기
-    // 데스크톱에선 기본 펼침 상태 유지(원하면 아래 줄을 주석 해제)
-    // document.body.classList.add('sidebar-closed');
-  }
-
-  toggleBtn.addEventListener('click', ()=>{
-    if (isMobile()){
-      document.body.classList.toggle('sb-open');
-    } else {
-      document.body.classList.toggle('sidebar-closed');
-    }
-  });
-
-  // 딤 클릭 시 닫기
-  dim.addEventListener('click', closeAllSidebars);
-
-  // 화면 크기 변경 시 모드 정리
-  window.addEventListener('resize', ()=>{
-    if (isMobile()){
-      // 모바일에서는 메인은 항상 좌여백 없음, 사이드바는 기본 닫힘
-      document.body.classList.add('sidebar-closed');
-    } else {
-      // 데스크톱에서는 오버레이 모드 해제
-      document.body.classList.remove('sb-open');
-    }
-  });
-
-  function send(){
-    const v=document.getElementById('ask').value.trim();
-    if(!v) return;
-    console.log('[ASK]',v);
-    document.getElementById('ask').value='';
-  }
-
-  // ✅ 로그아웃
-  async function logout(){
-    try {
-      await fetch("/api/logout", { method:"POST", credentials:"include" }).catch(()=>{});
-    } catch(_) {}
-    localStorage.removeItem("isLoggedIn");
-    localStorage.removeItem("isGuest");
-    sessionStorage.clear();
-    location.href = "login.html";
-  }
-
-  // #️⃣ 세션 정보 → 좌측 하단 박스 & 버튼 상태
-  async function hydrateUserUI() {
-    try {
-      const res = await fetch("/api/me", { credentials: "include" });
-      const data = await res.json().catch(()=> ({}));
-
-      const btn = document.getElementById("authBtn");
-      const logoutBtn = document.getElementById("logoutBtn");
-      const nameEl = document.getElementById("userName");
-      const metaEl = document.getElementById("userMeta");
-
-      if (res.ok && data.ok && data.user) {
-        const u = data.user;
-        nameEl.textContent = u.name || "이름 없음";
-        metaEl.innerHTML = `${u.uid || "-"}<br>${u.department || "-"}`;
-
-        if (btn) btn.style.display = "none";
-        if (logoutBtn) {
-          logoutBtn.style.display = "inline-flex";
-          logoutBtn.onclick = logout;
-        }
-      } else {
-        if (btn) {
-          btn.textContent = "로그인";
-          btn.onclick = ()=> location.href="login.html";
-          btn.style.display = "inline-flex";
-        }
-        if (logoutBtn) logoutBtn.style.display = "none";
+    toggleBtn.addEventListener('click', ()=>{
+      if(isMobile()){
+        document.body.classList.toggle('sb-open');
+      }else{
+        document.body.classList.toggle('sidebar-closed');
       }
-    } catch (e) {
-      console.warn("세션 조회 실패", e);
-    }
-  }
-  hydrateUserUI();
-</script>
+    });
+    dim.addEventListener('click', ()=>{ document.body.classList.remove('sb-open'); });
 
+    window.addEventListener('resize', ()=>{
+      if(isMobile()){
+        document.body.classList.add('sidebar-closed'); // 메인은 좌여백 제거
+      }else{
+        document.body.classList.remove('sb-open');     // 오버레이 종료
+      }
+    });
+
+    function send(){
+      const v=document.getElementById('ask').value.trim();
+      if(!v) return;
+      console.log('[ASK]', v);
+      document.getElementById('ask').value='';
+    }
+
+    // 버튼: 로그인으로 이동
+    document.getElementById("authBtn").onclick=()=>location.href="login.html";
+  </script>
 </body>
 </html>
