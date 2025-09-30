@@ -88,8 +88,8 @@ INSERT INTO department (faculty_id, name, program_length) VALUES
 
 -- ✅ 7. 학생 데이터 (예시)
 INSERT INTO student (user_id, password_hash, name, student_no, status, dept_id) VALUES
-('kim01', 'pass1234', '김가람', '202312345', '재학', (SELECT id FROM department WHERE name='인공지능소프트웨어학과')),
-('lee02', 'test0000', '이보미', '202312346', '휴학', (SELECT id FROM department WHERE name='경영학과')),
+('rladnrgusaos', 'rewq@1234567', '김욱현', '20231598', '재학', (SELECT id FROM department WHERE name='인공지능소프트웨어학과')),
+('jian0304', 'choi0809', '최지안', '20231597', '재학', (SELECT id FROM department WHERE name='인공지능소프트웨어학과')),
 ('park03', 'qwer!234', '박준서', '202312347', '재학', (SELECT id FROM department WHERE name='건축과'));
 
 -- ✅ 8. 데이터 확인용 조회 쿼리
