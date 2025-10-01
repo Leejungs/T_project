@@ -1,0 +1,32 @@
+<!-- 파일 업로드 테스트 페이지 -->
+
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>STT/TTS 샘플</title>
+</head>
+<body>
+  <h2>음성 → LLM → 음성</h2>
+  <form id="form">
+    <input type="file" id="audio" accept="audio/*" required />
+    <button>보내기</button>
+  </form>
+  <audio id="player" controls></audio>
+
+  <script>
+    const form = document.getElementById('form');
+    const player = document.getElementById('player');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const file = document.getElementById('audio').files[0];
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/voice-chat', { method: 'POST', body: fd });
+      const blob = await res.blob();
+      player.src = URL.createObjectURL(blob);
+      player.play();
+    });
+  </script>
+</body>
+</html>
