@@ -56,6 +56,9 @@ T_project/
 
 ## 🚀 실행 순서
 
+### 0. 사전 준비
+- Docker Desktop 실행
+
 ### 1. 프로젝트 클론 & 진입
 ```bash
 git clone <repo-url>
