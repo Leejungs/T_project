@@ -1,0 +1,14 @@
+pydantic
+pydantic-settings
+python-dotenv
+unstructured[pdf]
+sentence-transformers
+chromadb
+langchain
+langchain-community
+langchain-openai
+openai
+pandas
+tqdm
+langchain-google-genai
+tiktoken
