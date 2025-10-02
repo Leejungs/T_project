@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>상세 | 양동이</title>
+<style>
+  :root{
+    --brand:#1565d8; --brand-dark:#0f4aa4;
+    --bg:#f3f6fb; --card:#fff; --muted:#6b7280; --shadow:0 10px 30px rgba(0,0,0,.08);
+    --sbw:260px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:#1f2a37; font-family:"Pretendard","Noto Sans KR",system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,"Malgun Gothic",sans-serif}
+  .topbar{height:64px; background:#fff; display:flex; align-items:center; justify-content:space-between; padding:0 16px; box-shadow:var(--shadow)}
+  .left{display:flex; gap:8px; align-items:center}
+  .back{border:none; background:#eef3ff; color:#1f2a37; border-radius:10px; padding:8px 12px; cursor:pointer}
+  .title{font-weight:800; font-size:18px}
+  .wrap{max-width:1100px; margin:36px auto; padding:0 20px}
+  .hero{display:flex; gap:16px; align-items:center; background:#f7faff; border-radius:18px; padding:22px; box-shadow:inset 0 3px 0 #e3ecff}
+  .hero .icon{width:56px; height:56px; border-radius:14px; background:#e9f1ff; display:grid; place-items:center}
+  .hero .icon img.emoji{width:28px; height:28px; display:block}
+  .hero h1{margin:0; font-size:22px}
+  .hero p{margin:2px 0 0; color:var(--muted)}
+  .cards{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:18px}
+  .card{background:#fff; border-radius:16px; box-shadow:var(--shadow); padding:18px}
+  .card h3{margin:0 0 8px}
+  .list{display:grid; gap:10px}
+  .row{display:flex; justify-content:space-between; align-items:center; padding:12px 12px; background:#f9fbff; border-radius:12px}
+  .row .l{display:flex; gap:10px; align-items:center}
+  .row .l .b{width:34px; height:34px; border-radius:10px; background:#eef3ff; display:grid; place-items:center}
+  .row .l .b img.emoji{width:18px; height:18px}
+  .row .r a{color:#1565d8; font-weight:700; text-decoration:none}
+  .faq-item{border-top:1px solid #eef2ff; padding:10px 0}
+  .faq-item summary{cursor:pointer; font-weight:700}
+  .empty{color:var(--muted)}
+  .footer{margin-top:18px; display:flex; gap:10px}
+  .btn{padding:12px 14px; border:none; border-radius:10px; cursor:pointer; font-weight:700}
+  .primary{background:#1565d8; color:#fff}
+  .ghost{background:#eef3ff; color:#1565d8}
+  /* link reset for tile anchors from main */
+  a.tile{ text-decoration:none; color:inherit; }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="left">
+      <button class="back" onclick="history.back()">← 뒤로</button>
+      <div class="title" id="pageTitle">상세</div>
+    </div>
+    <div class="right" id="today"></div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <div class="icon" id="heroIcon">📘</div>
+      <div>
+        <h1 id="heroTitle">제목</h1>
+        <p id="heroDesc">설명</p>
+      </div>
+    </section>
+
+    <section class="cards">
+      <div class="card">
+        <h3 id="card1Title">빠른 조회</h3>
+        <div id="quickList" class="list"></div>
+      </div>
+      <div class="card">
+        <h3>자주 묻는 질문</h3>
+        <div id="faqList" class="list"></div>
+      </div>
+
+      <div class="card">
+        <h3 id="card3Title">최근 알림</h3>
+        <div id="noticeList" class="list"></div>
+      </div>
+      <div class="card">
+        <h3>바로가기</h3>
+        <div class="list" id="linkList"></div>
+      </div>
+    </section>
+
+    <div class="footer">
+      <button class="btn primary" id="actionPrimary">추천 작업</button>
+      <button class="btn ghost" id="actionSecondary">다른 작업</button>
+    </div>
+  </main>
+
+  <!-- Twemoji (이모지 통일) -->
+  <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js" crossorigin="anonymous"></script>
+  <script>
+    // 오늘 날짜
+    (function(){
+      const d=new Date(), w=['일','월','화','수','목','금','토'][d.getDay()];
+      document.getElementById('today').textContent =
+        `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${w}`;
+    })();
+
+    // 데이터 사전 (전시용 샘플)
+    const DB = {
+      schedule: {
+        title: '수업 시간표', icon:'🗓️',
+        desc: '이번 주 수업 및 강의실 정보를 한눈에 확인하세요.',
+        quick: [
+          {icon:'🏫', text:'오늘 강의실: 공학관 402 / 508'},
+          {icon:'🕘', text:'다음 수업: 13:00 자료구조'},
+          {icon:'🚌', text:'통학버스: 18:10 막차'}
+        ],
+        faq: [
+          {q:'출결은 어디서 확인하나요?', a:'eClass → 과목 → 출결 탭에서 확인할 수 있습니다.'},
+          {q:'강의실이 바뀌면 어디서 알림이 오나요?', a:'학사공지와 과목 공지로 안내됩니다.'}
+        ],
+        notice: [
+          {icon:'📢', text:'9/20(금) 3교시 대체수업 공지'},
+          {icon:'⏰', text:'중간고사 시간표는 10/10 공개 예정'}
+        ],
+        links: [
+          {icon:'💬', text:'시간표 문의 챗봇 열기', href:'#'},
+          {icon:'🗂️', text:'PDF 시간표 다운로드', href:'#'}
+        ],
+        actions: ['이번 주 시간표 다시 받기','과목별 강의실 보기']
+      },
+      cert: {
+        title:'자격증 안내', icon:'🧾',
+        desc:'전공 맞춤 자격증 추천과 시험 일정을 확인하세요.',
+        quick:[
+          {icon:'⭐', text:'추천: 정보처리기사(필기), ADsP'},
+          {icon:'🗓️', text:'다음 접수: 10/3~10/7 (큐넷)'},
+        ],
+        faq:[
+          {q:'응시자격은 어떻게 되나요?', a:'학력/경력 요건은 시험별로 상이하며 큐넷 공지에서 확인하세요.'},
+          {q:'교내 스터디가 있나요?', a:'학과 학생회 디스코드에서 모집 공고를 확인하세요.'}
+        ],
+        notice:[{icon:'📢', text:'자격증 응시료 일부 지원 (~11/30)'}],
+        links:[
+          {icon:'🌐', text:'큐넷 바로가기', href:'#'},
+          {icon:'📘', text:'교내 스터디 모집', href:'#'}
+        ],
+        actions:['개인 추천 다시 받기','모의고사 풀기']
+      },
+      grades: {
+        title:'학점 조회', icon:'🧑‍🎓',
+        desc:'누적/학기별 성적을 확인하고 GPA를 계산해 보세요.',
+        quick:[
+          {icon:'📈', text:'누적 GPA: 3.82 / 4.5'},
+          {icon:'🎯', text:'이번 학기 평균: 3.95'}
+        ],
+        faq:[
+          {q:'상대평가 비율은?', a:'학과 규정에 따르며 교과목 계획서에서 확인 가능합니다.'},
+          {q:'재수강 반영은?', a:'최신 성적만 반영됩니다.'}
+        ],
+        notice:[{icon:'📢', text:'성적 이의신청 기간: 12/23~12/25'}],
+        links:[
+          {icon:'🧮', text:'GPA 계산기 열기', href:'#'},
+          {icon:'📄', text:'성적증명서 발급', href:'#'}
+        ],
+        actions:['성적표 PDF 저장','졸업요건 대비표 열기']
+      },
+      eclass: {
+        title:'eClass', icon:'💻',
+        desc:'과제/공지/강의자료를 빠르게 확인하세요.',
+        quick:[
+          {icon:'📝', text:'이번 주 마감 과제: 2건'},
+          {icon:'📣', text:'새 공지: 알고리즘 발표 안내'}
+        ],
+        faq:[
+          {q:'모바일 푸시는?', a:'앱 설정 > 알림 허용으로 받을 수 있어요.'}
+        ],
+        notice:[{icon:'⚠️', text:'서버 점검 9/25 02:00~04:00'}],
+        links:[
+          {icon:'🔗', text:'eClass 접속', href:'#'},
+          {icon:'📥', text:'과제 일괄 다운로드', href:'#'}
+        ],
+        actions:['오늘 마감만 보기','읽지 않은 공지만']
+      },
+      library: {
+        title:'도서관', icon:'📚',
+        desc:'대출/연장/좌석 현황을 조회하고 이용하세요.',
+        quick:[
+          {icon:'📘', text:'대출중: 3권 / 연체 0'},
+          {icon:'🪑', text:'열람실 좌석 점유율: 62%'}
+        ],
+        faq:[
+          {q:'연장은 몇 회 가능한가요?', a:'1회 7일(자료 종류에 따라 상이)'},
+          {q:'분실 시 처리?', a:'동일 자료 변상 또는 실비 변상'}
+        ],
+        notice:[{icon:'📢', text:'전자자료 구독 신규 추가: ACM DL'}],
+        links:[
+          {icon:'🔎', text:'소장자료 검색', href:'#'},
+          {icon:'🪑', text:'좌석배정 시스템', href:'#'}
+        ],
+        actions:['대출 연장하기','예약 현황 보기']
+      },
+      graduate: {
+        title:'졸업 학점 이수', icon:'🎓',
+        desc:'전공/교양/선택 이수현황을 확인하여 졸업요건을 점검하세요.',
+        quick:[
+          {icon:'🧩', text:'전공 78/84, 교양 29/30, 총 127/130'},
+          {icon:'✅', text:'필수 미이수: 캡스톤디자인2'}
+        ],
+        faq:[
+          {q:'복수전공/부전공 반영?', a:'해당 학과 배점표에 따라 별도 기준으로 산정됩니다.'}
+        ],
+        notice:[{icon:'📢', text:'졸업사정 예비점검 11/15 시작'}],
+        links:[
+          {icon:'📄', text:'졸업요건표(학과)', href:'#'},
+          {icon:'🧾', text:'이수체크표 다운로드', href:'#'}
+        ],
+        actions:['부족학점 과목 추천','졸업상담 예약']
+      }
+    };
+
+    // 쿼리에서 feature 키 추출
+    const params = new URLSearchParams(location.search);
+    const key = params.get('feature') || 'schedule';
+    const data = DB[key] || DB.schedule;
+
+    // 헤더/히어로 채우기
+    document.getElementById('pageTitle').textContent = data.title;
+    document.getElementById('heroTitle').textContent = data.title;
+    document.getElementById('heroDesc').textContent = data.desc;
+    document.getElementById('heroIcon').textContent = data.icon;
+
+    // 리스트 렌더링 도우미
+    function renderRows(targetId, rows){
+      const box = document.getElementById(targetId);
+      if(!rows || !rows.length){ box.innerHTML = `<div class="empty">표시할 항목이 없습니다.</div>`; return; }
+      box.innerHTML = rows.map(r => {
+        if(r.href){
+          return `<div class="row"><div class="l"><div class="b">${r.icon||'🔗'}</div><div>${r.text}</div></div><div class="r"><a href="${r.href}">열기</a></div></div>`;
+        }
+        return `<div class="row"><div class="l"><div class="b">${r.icon||'•'}</div><div>${r.text}</div></div><div class="r"></div></div>`;
+      }).join('');
+    }
+
+    renderRows('quickList', data.quick);
+    renderRows('noticeList', data.notice);
+    renderRows('linkList', data.links);
+
+    // FAQ
+    const faqBox = document.getElementById('faqList');
+    faqBox.innerHTML = (data.faq||[]).map(f => `
+      <details class="faq-item">
+        <summary>${f.q}</summary>
+        <div style="margin-top:6px; color:#4b5563">${f.a}</div>
+      </details>
+    `).join('') || `<div class="empty">FAQ가 없습니다.</div>`;
+
+    // 풋터 버튼
+    const [a1,a2] = data.actions||['작업1','작업2'];
+    document.getElementById('actionPrimary').textContent = a1;
+    document.getElementById('actionSecondary').textContent = a2;
+
+    // Twemoji 적용
+    document.addEventListener('DOMContentLoaded', ()=>{
+      twemoji.parse(document.body, {folder:'svg', ext:'.svg'});
+    });
+  </script>
+</body>
+</html>
