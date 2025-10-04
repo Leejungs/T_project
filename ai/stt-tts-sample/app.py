@@ -269,3 +269,61 @@ async def voice_chat(file: UploadFile = File(...)):
         audio_b64=audio_b64,
         audio_mime="audio/mpeg",
     )
+
+# -----------------------------------------------------------------------------
+# RAG APIs
+# -----------------------------------------------------------------------------
+from rag.ingest import ingest_pdf
+from rag.retriever import retrieve
+from rag.qa import answer as rag_answer
+from pydantic import BaseModel
+from fastapi import HTTPException
+
+@app.post("/rag/ingest")
+def rag_ingest():
+    """학칙 PDF를 인덱싱(임베딩 저장)"""
+    try:
+        res = ingest_pdf()
+        return {"status": "ok", **res}
+    except Exception as e:
+        raise HTTPException(500, f"Ingest failed: {e}")
+
+class RagChatReq(BaseModel):
+    query: str
+    top_k: int = 4
+
+@app.post("/rag/chat")
+def rag_chat(req: RagChatReq):
+    """질문→검색→답변(+출처)"""
+    q = (req.query or "").strip()
+    if not q:
+        raise HTTPException(400, "Empty query")
+    chunks = retrieve(q, k=req.top_k)
+    qa = rag_answer(q, chunks)
+    return {"answer": qa["answer"], "sources": qa["sources"]}
+
+# /rag/preview: top-k 문서와 점수 보기
+@app.post("/rag/preview")
+def rag_preview(req: RagChatReq):
+    from rag.retriever import retrieve
+    chunks = retrieve(req.query, k=req.top_k)
+    return {"chunks": [{"page":c["meta"]["page"], "score":round(c["score"],3), "text":c["text"][:400]} for c in chunks]}
+
+# 디버그: RAG 상태 확인
+from rag.ingest import extract_text_pages, extract_tables_as_lines
+from rag.retriever import retrieve
+
+@app.get("/rag/info")
+def rag_info():
+    from rag.config import DOC_PATH, CHROMA_DIR
+    import os
+    exists = os.path.exists(DOC_PATH)
+    return {"doc_path": DOC_PATH, "exists": exists, "chroma_dir": CHROMA_DIR}
+
+@app.post("/rag/preview")
+def rag_preview(req: RagChatReq):
+    chunks = retrieve(req.query, k=req.top_k)
+    return {"chunks": [
+        {"page": c["meta"]["page"], "score": round(c["score"] or 0, 3), "text": c["text"][:500]}
+        for c in chunks
+    ]}

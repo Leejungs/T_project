@@ -200,5 +200,35 @@
       }
     };
   </script>
+
+  <!-- RAG 테스트 UI -->
+  <section>
+    <h2>RAG: 학칙 질문</h2>
+    <label>질문</label>
+    <input type="text" id="ragQ" placeholder="예: 휴학은 최대 몇 학기?"/>
+    <div class="row">
+      <button id="btnRagAsk">질문</button>
+      <span class="pill">POST /rag/chat</span>
+    </div>
+    <h3>답변</h3>
+    <pre id="ragAns"></pre>
+  </section>
+
+  <script>
+    $("#btnRagAsk").onclick = async () => {
+      const q = $("#ragQ").value.trim();
+      if (!q) return alert("질문을 입력하세요.");
+      const r = await fetch("/rag/chat", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({query: q, top_k: 4})
+      });
+      const raw = await r.text();
+      if (!r.ok) return alert("RAG 오류: " + raw);
+      const j = JSON.parse(raw);
+      $("#ragAns").textContent = j.answer + "\n\nsources: " + JSON.stringify(j.sources);
+    };
+  </script>
+
 </body>
 </html>
