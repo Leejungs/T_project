@@ -11,7 +11,9 @@ from dotenv import load_dotenv
 import os
 
 # .env 파일 로드
-load_dotenv()
+THIS_DIR = os.path.dirname(__file__)
+ENV_PATH = os.path.join(THIS_DIR, ".env")
+load_dotenv(ENV_PATH)
 
 class Settings(BaseModel):
     """
