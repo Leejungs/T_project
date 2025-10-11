@@ -273,57 +273,84 @@ async def voice_chat(file: UploadFile = File(...)):
 # -----------------------------------------------------------------------------
 # RAG APIs
 # -----------------------------------------------------------------------------
-from rag.ingest import ingest_pdf
-from rag.retriever import retrieve
-from rag.qa import answer as rag_answer
+from typing import Optional
 from pydantic import BaseModel
 from fastapi import HTTPException
 
+from rag.config import DOC_PATH
+from rag.auto_index import ensure_index_ready
+from rag.retriever import retrieve
+from rag.qa import answer as rag_answer
+
+# 인덱싱 강제 실행(수동): path 없으면 기본 DOC_PATH 사용
+class IngestReq(BaseModel):
+    path: Optional[str] = None
+
 @app.post("/rag/ingest")
-def rag_ingest():
-    """학칙 PDF를 인덱싱(임베딩 저장)"""
+def rag_ingest(req: Optional[IngestReq] = None):
+    """학칙 PDF 인덱싱(강제). path가 없으면 기본 DOC_PATH."""
     try:
-        res = ingest_pdf()
+        use_path = (req.path if req else None) or DOC_PATH
+        res = ensure_index_ready(path=use_path, force=True)
         return {"status": "ok", **res}
+    except FileNotFoundError as e:
+        raise HTTPException(500, f"PDF not found: {str(e)}")
     except Exception as e:
         raise HTTPException(500, f"Ingest failed: {e}")
 
+# 질의 모델: path 제공 시 해당 PDF로 자동 인덱싱 보장 후 질의
 class RagChatReq(BaseModel):
     query: str
-    top_k: int = 4
+    top_k: int = 6
+    path: Optional[str] = None  # 없으면 기본 DOC_PATH
 
 @app.post("/rag/chat")
 def rag_chat(req: RagChatReq):
-    """질문→검색→답변(+출처)"""
+    """질문 → (자동 인덱싱) → 검색 → 답변(+출처)"""
     q = (req.query or "").strip()
     if not q:
         raise HTTPException(400, "Empty query")
-    chunks = retrieve(q, k=req.top_k)
-    qa = rag_answer(q, chunks)
-    return {"answer": qa["answer"], "sources": qa["sources"]}
+    try:
+        # ✅ 핵심: 인덱스가 없거나 PDF가 바뀌었으면 자동 인덱싱
+        auto = ensure_index_ready(path=req.path or DOC_PATH, force=False)
 
-# /rag/preview: top-k 문서와 점수 보기
+        chunks = retrieve(q, k=req.top_k)
+        qa = rag_answer(q, chunks)
+        return {"answer": qa["answer"], "sources": qa["sources"], "auto_index": auto}
+    except FileNotFoundError as e:
+        raise HTTPException(500, f"PDF not found: {str(e)}")
+    except Exception as e:
+        raise HTTPException(500, f"RAG failed: {e}")
+
+# 미리보기: 선택된 청크/점수 확인 (+자동 인덱싱)
 @app.post("/rag/preview")
 def rag_preview(req: RagChatReq):
-    from rag.retriever import retrieve
-    chunks = retrieve(req.query, k=req.top_k)
-    return {"chunks": [{"page":c["meta"]["page"], "score":round(c["score"],3), "text":c["text"][:400]} for c in chunks]}
+    try:
+        auto = ensure_index_ready(path=req.path or DOC_PATH, force=False)
+        chunks = retrieve(req.query, k=req.top_k)
+        return {
+            "auto_index": auto,
+            "chunks": [
+                {
+                    "page": c["meta"]["page"],
+                    "score": round((c.get("score") or 0.0), 3),
+                    "text": c["text"][:500],
+                }
+                for c in chunks
+            ],
+        }
+    except FileNotFoundError as e:
+        raise HTTPException(500, f"PDF not found: {str(e)}")
+    except Exception as e:
+        raise HTTPException(500, f"Preview failed: {e}")
 
 # 디버그: RAG 상태 확인
-from rag.ingest import extract_text_pages, extract_tables_as_lines
-from rag.retriever import retrieve
-
 @app.get("/rag/info")
 def rag_info():
     from rag.config import DOC_PATH, CHROMA_DIR
     import os
-    exists = os.path.exists(DOC_PATH)
-    return {"doc_path": DOC_PATH, "exists": exists, "chroma_dir": CHROMA_DIR}
-
-@app.post("/rag/preview")
-def rag_preview(req: RagChatReq):
-    chunks = retrieve(req.query, k=req.top_k)
-    return {"chunks": [
-        {"page": c["meta"]["page"], "score": round(c["score"] or 0, 3), "text": c["text"][:500]}
-        for c in chunks
-    ]}
+    return {
+        "doc_path": DOC_PATH,
+        "exists": os.path.exists(DOC_PATH),
+        "chroma_dir": CHROMA_DIR,
+    }
