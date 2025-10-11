@@ -20,6 +20,7 @@ import os
 import base64
 import asyncio
 from io import BytesIO
+import time
 from typing import Optional, List, Dict, Any
 
 from fastapi import FastAPI, File, UploadFile, HTTPException
@@ -79,6 +80,63 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 async def root():
     """브라우저에서 기본 페이지 표시"""
     return FileResponse("static/index.html")
+
+# -----------------------------------------------------------------------------
+# 비동기 warmup
+# -----------------------------------------------------------------------------
+WARMUP_ON_STARTUP = os.getenv("WARMUP_ON_STARTUP", "true").lower() == "true"
+
+warmup_state = {
+    "running": False,
+    "done": False,
+    "started_at": None,
+    "finished_at": None,
+    "steps": [],   # 각 단계 로그
+}
+
+def _step(msg: str):
+    warmup_state["steps"].append({"t": time.strftime("%H:%M:%S"), "msg": msg})
+
+# app.py - warmup 내부를 경량화(인덱스 확인 제거)
+async def _warmup():
+    if warmup_state["running"] or warmup_state["done"]:
+        return
+    warmup_state.update({"running": True, "done": False, "started_at": time.time(), "steps": []})
+    try:
+        _step("load embedder()")
+        await asyncio.to_thread(embedder)
+
+        _step("retrieve('ping')")  # Chroma 커넥션/캐시만 예열
+        await asyncio.to_thread(retrieve, "웜업 질문", 1)
+
+        _step("LLM ping")
+        _ = chat(
+            messages=[{"role": "user", "content": "ping"}],
+            temperature=0.0, max_tokens=1, timeout_s=6
+        )
+        _step("all done")
+    finally:
+        warmup_state.update({"running": False, "done": True, "finished_at": time.time()})
+
+@app.on_event("startup")
+async def on_startup():
+    if WARMUP_ON_STARTUP:
+        asyncio.create_task(_warmup())
+
+# --- 상태 확인/수동 시작 ---
+@app.get("/warmup/status")
+def warmup_status():
+    s = dict(warmup_state)
+    if s["started_at"] is not None:
+        s["started_at"] = int(s["started_at"])
+    if s["finished_at"] is not None:
+        s["finished_at"] = int(s["finished_at"])
+    return s
+
+@app.post("/warmup/start")
+async def warmup_start():
+    asyncio.create_task(_warmup())
+    return {"ok": True, "started": True}
 
 # -----------------------------------------------------------------------------
 # Lazy-loaded STT 모델
@@ -179,9 +237,12 @@ async def tts_synthesize_mp3(text: str, voice: str) -> bytes:
 # -----------------------------------------------------------------------------
 @app.get("/health")
 def health():
-    """서버 상태 확인용 엔드포인트"""
-    # 키가 없더라도 STT/TTS는 동작하므로 단순 상태만 표기
-    return {"status": "ok", "llm": "gpt-4o-mini-via-llm_runtime"}
+    return {
+        "status": "ok",
+        "llm": "gpt-4o-mini-via-llm_runtime",
+        "warmup_done": warmup_state["done"],
+        "warmup_running": warmup_state["running"],
+    }
 
 # -----------------------------------------------------------------------------
 # STT 엔드포인트
@@ -273,84 +334,110 @@ async def voice_chat(file: UploadFile = File(...)):
 # -----------------------------------------------------------------------------
 # RAG APIs
 # -----------------------------------------------------------------------------
-from typing import Optional
+from typing import Optional, Dict, List
 from pydantic import BaseModel
 from fastapi import HTTPException
-
-from rag.config import DOC_PATH
 from rag.auto_index import ensure_index_ready
+from rag.ingest import ingest_all, embedder
 from rag.retriever import retrieve
 from rag.qa import answer as rag_answer
+from llm_runtime.llm_client import chat as llm_chat
 
-# 인덱싱 강제 실행(수동): path 없으면 기본 DOC_PATH 사용
-class IngestReq(BaseModel):
-    path: Optional[str] = None
+class IngestAllReq(BaseModel):
+    pdf_paths: Optional[List[str]] = None
+    mongo_query: Optional[Dict] = None
 
 @app.post("/rag/ingest")
-def rag_ingest(req: Optional[IngestReq] = None):
-    """학칙 PDF 인덱싱(강제). path가 없으면 기본 DOC_PATH."""
+def rag_ingest(req: Optional[IngestAllReq] = None):
     try:
-        use_path = (req.path if req else None) or DOC_PATH
-        res = ensure_index_ready(path=use_path, force=True)
-        return {"status": "ok", **res}
-    except FileNotFoundError as e:
-        raise HTTPException(500, f"PDF not found: {str(e)}")
+        res = ingest_all(pdf_paths=req.pdf_paths if req else None,
+                         mongo_query=req.mongo_query if req else None)
+        # manifest 갱신을 위해 ensure(force=True) 호출
+        auto = ensure_index_ready(force=True)
+        return {"status":"ok","ingest":res,"auto_index":auto}
     except Exception as e:
         raise HTTPException(500, f"Ingest failed: {e}")
 
-# 질의 모델: path 제공 시 해당 PDF로 자동 인덱싱 보장 후 질의
 class RagChatReq(BaseModel):
     query: str
     top_k: int = 6
-    path: Optional[str] = None  # 없으면 기본 DOC_PATH
+    # dataset 등 필터: {"dataset": ["경영학과","전기공학과"]}
+    filters: Optional[Dict[str, List[str]]] = None
 
 @app.post("/rag/chat")
 def rag_chat(req: RagChatReq):
-    """질문 → (자동 인덱싱) → 검색 → 답변(+출처)"""
     q = (req.query or "").strip()
     if not q:
-        raise HTTPException(400, "Empty query")
+        raise HTTPException(status_code=400, detail="Empty query")
+
+    t0 = time.perf_counter()
+
+    # ① 인덱스 최신화 (최초 1회만 의미 있음; 이후엔 빠름)
+    #    여기서 오래 걸리면 첫 질문만 느린 원인 → startup 웜업으로 해소 가능
+    auto = ensure_index_ready(force=False)
+
     try:
-        # ✅ 핵심: 인덱스가 없거나 PDF가 바뀌었으면 자동 인덱싱
-        auto = ensure_index_ready(path=req.path or DOC_PATH, force=False)
+        # ② 리트리버 파라미터 안전 범위로 클램프 (너무 큰 top_k 방지)
+        k = max(1, min(8, req.top_k or 6))
 
-        chunks = retrieve(q, k=req.top_k)
+        # ③ 검색 (빠르게 끝나야 정상)
+        chunks = retrieve(q, k=k, filters=req.filters)
+
+        # ④ LLM 합성 (rag/qa.py에서 timeout/컨텍스트 제한 적용되어 있어야 함)
         qa = rag_answer(q, chunks)
-        return {"answer": qa["answer"], "sources": qa["sources"], "auto_index": auto}
-    except FileNotFoundError as e:
-        raise HTTPException(500, f"PDF not found: {str(e)}")
-    except Exception as e:
-        raise HTTPException(500, f"RAG failed: {e}")
 
-# 미리보기: 선택된 청크/점수 확인 (+자동 인덱싱)
+        latency_ms = int((time.perf_counter() - t0) * 1000)
+        return {
+            "answer": qa["answer"],
+            "sources": qa["sources"],
+            "auto_index": auto,
+            "latency_ms": latency_ms,   # 디버깅용 지연 시간
+        }
+
+    except TimeoutError:
+        # LLM 타임아웃은 504로 명확히
+        raise HTTPException(status_code=504, detail="LLM timeout")
+    except Exception as e:
+        # 나머지는 502로 래핑
+        raise HTTPException(status_code=502, detail=f"RAG failed: {e}")
+
 @app.post("/rag/preview")
 def rag_preview(req: RagChatReq):
     try:
-        auto = ensure_index_ready(path=req.path or DOC_PATH, force=False)
-        chunks = retrieve(req.query, k=req.top_k)
-        return {
-            "auto_index": auto,
-            "chunks": [
-                {
-                    "page": c["meta"]["page"],
-                    "score": round((c.get("score") or 0.0), 3),
-                    "text": c["text"][:500],
-                }
-                for c in chunks
-            ],
-        }
-    except FileNotFoundError as e:
-        raise HTTPException(500, f"PDF not found: {str(e)}")
+        auto = ensure_index_ready(force=False)
+        chunks = retrieve(req.query, k=req.top_k, filters=req.filters)
+        return {"auto_index": auto, "chunks": [
+            {"page": c["meta"].get("page"),
+             "source_type": c["meta"].get("source_type"),
+             "title": c["meta"].get("title"),
+             "dataset": c["meta"].get("dataset"),
+             "score": round((c.get("score") or 0), 3),
+             "text": c["text"][:500]}
+        for c in chunks]}
     except Exception as e:
         raise HTTPException(500, f"Preview failed: {e}")
 
-# 디버그: RAG 상태 확인
-@app.get("/rag/info")
-def rag_info():
-    from rag.config import DOC_PATH, CHROMA_DIR
-    import os
-    return {
-        "doc_path": DOC_PATH,
-        "exists": os.path.exists(DOC_PATH),
-        "chroma_dir": CHROMA_DIR,
-    }
+# ---------- Mongo 디버그 ----------
+from pymongo import MongoClient
+from fastapi import APIRouter
+
+@app.get("/rag/debug/mongo")
+def rag_debug_mongo():
+    import os, traceback
+    from rag.config import MONGO_URI, MONGO_DB, MONGO_COLL, MONGO_UPDATED_FIELD
+    out = {"ok": False, "uri": MONGO_URI, "db": MONGO_DB, "coll": MONGO_COLL, "updated_field": MONGO_UPDATED_FIELD}
+    try:
+        cli = MongoClient(MONGO_URI)
+        db  = cli[MONGO_DB]
+        colls = [c for c in db.list_collection_names() if not c.startswith("system.")]
+        out["collections"] = colls
+        samples = {}
+        for name in colls[:5]:
+            doc = db[name].find_one()
+            samples[name] = {k: doc.get(k) for k in ["title","subject","content","body","summary","text","updated_at"]} if doc else None
+        out["samples"] = samples
+        out["ok"] = True
+    except Exception as e:
+        out["error"] = f"{type(e).__name__}: {e}"
+        out["trace"] = traceback.format_exc(limit=3)
+    return out

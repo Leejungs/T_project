@@ -1,28 +1,112 @@
+# ai/rag/auto_index.py
 # ================================================================
-# auto_index.py
-# ------------------------------------------------
-# 🧩 역할:
-#   - 질문이 들어올 때, 벡터 인덱스(Chroma)가 준비돼 있는지 확인
-#   - 비어 있거나 PDF가 변경되었으면 즉시 인덱싱 수행
-#   - 중복 인덱싱 방지를 위해 프로세스 내 락 사용
+# 목적
+# - 질의 전에 벡터 인덱스(Chroma)가 준비됐는지 확인
+# - (옵션) PDF/Mongo 변경 감지 후 필요한 경우에만 재인덱싱
+# - force=True로 강제 재인덱싱
+#
+# 환경변수
+# - AUTO_INDEX_ON_QUERY=false  → 질의 시 자동 인덱싱 비활성화(권장)
+# - MONGO_*_TIMEOUT_MS         → Mongo 접속 타임아웃
+# - MONGO_SAMPLE_COLLECTIONS   → 변경 감지 시 확인할 컬렉션 수(0=무제한)
 # ================================================================
-
 from __future__ import annotations
-import os, json, threading
-from typing import Optional, Tuple
-from .config import DOC_PATH, CHROMA_DIR
-from .ingest import ingest_pdf
+
+import os, json, threading, glob, datetime
+from typing import Optional, List, Dict
+
+from .config import (
+    DATA_DIR, PDF_GLOBS, CHROMA_DIR,
+    MONGO_URI, MONGO_DB, MONGO_COLL, MONGO_UPDATED_FIELD,
+)
+from .ingest import ingest_all
 from .store import get_client, get_collection
+
+from pymongo import MongoClient
+
+# ---- 옵션/타임아웃 ----
+AUTO_INDEX_ON_QUERY = os.getenv("AUTO_INDEX_ON_QUERY", "false").lower() == "true"
+SAMPLE_LIMIT = int(os.getenv("MONGO_SAMPLE_COLLECTIONS", "0"))  # 0=무제한
+
+MONGO_CONNECT_TIMEOUT_MS = int(os.getenv("MONGO_CONNECT_TIMEOUT_MS", "3000"))
+MONGO_SERVER_SELECTION_TIMEOUT_MS = int(os.getenv("MONGO_SERVER_SELECTION_TIMEOUT_MS", "3000"))
+MONGO_SOCKET_TIMEOUT_MS = int(os.getenv("MONGO_SOCKET_TIMEOUT_MS", "30000"))
 
 _MANIFEST_PATH = os.path.join(CHROMA_DIR, "manifest.json")
 _LOCK = threading.Lock()
 
-def _fingerprint(path: str) -> dict:
-    """PDF 파일의 식별 정보(경로, 크기, mtime)를 해시 대신 경량 메타로 사용."""
-    p = os.path.abspath(path)
-    st = os.stat(p)
-    return {"path": p, "size": st.st_size, "mtime": int(st.st_mtime)}
+# ---------------- 변경 감지 유틸 ----------------
+def _pdf_fingerprint() -> List[Dict]:
+    """PDF 경로/크기/mtime으로 변경 여부 판단"""
+    files: List[str] = []
+    for pat in PDF_GLOBS:
+        files.extend(glob.glob(os.path.join(DATA_DIR, pat)))
+    fps = []
+    for f in sorted(set(files)):
+        if os.path.exists(f):
+            st = os.stat(f)
+            fps.append({"path": os.path.abspath(f), "size": st.st_size, "mtime": int(st.st_mtime)})
+    return fps
 
+def _mongo_client() -> MongoClient:
+    return MongoClient(
+        MONGO_URI,
+        connectTimeoutMS=MONGO_CONNECT_TIMEOUT_MS,
+        serverSelectionTimeoutMS=MONGO_SERVER_SELECTION_TIMEOUT_MS,
+        socketTimeoutMS=MONGO_SOCKET_TIMEOUT_MS,
+    )
+
+def _collection_names(db) -> List[str]:
+    """MONGO_COLL='*' → 모든 컬렉션, 아니면 콤마 구분 목록"""
+    coll_env = (MONGO_COLL or "").strip()
+    if coll_env in ("", "*"):
+        return [c for c in db.list_collection_names() if not c.startswith("system.")]
+    return [c.strip() for c in coll_env.split(",") if c.strip()]
+
+def _coerce_ts(v) -> Optional[int]:
+    if isinstance(v, datetime.datetime): return int(v.timestamp())
+    if isinstance(v, (int, float)):      return int(v)
+    return None
+
+def _updated_field_for(_: str) -> str:
+    """컬렉션별로 바꾸고 싶으면 여기서 분기"""
+    return (MONGO_UPDATED_FIELD or "updated_at")
+
+def _latest_ts_for_collection(coll, uf: str) -> int:
+    """해당 컬렉션의 최신 타임스탬프(uf 우선, 없으면 _id 생성시각)"""
+    try:
+        doc = coll.find().sort([(uf, -1)]).limit(1).next()
+        ts = _coerce_ts(doc.get(uf))
+        if ts:
+            return ts
+    except Exception:
+        pass
+    try:
+        doc = coll.find().sort([("_id", -1)]).limit(1).next()
+        return int(doc["_id"].generation_time.timestamp())
+    except Exception:
+        return 0
+
+def _mongo_latest_map(sample_limit: int = 0) -> Dict[str, int]:
+    """
+    {컬렉션명: 최신타임스탬프} 매핑 생성.
+    실패 시 {} 반환(인덱싱 자체를 막지 않음).
+    """
+    out: Dict[str, int] = {}
+    try:
+        db = _mongo_client()[MONGO_DB]
+        names = _collection_names(db)
+        if sample_limit > 0:
+            names = names[:sample_limit]
+        for cname in names:
+            coll = db[cname]
+            uf = _updated_field_for(cname)
+            out[cname] = _latest_ts_for_collection(coll, uf)
+    except Exception:
+        return {}
+    return out
+
+# ---------------- manifest I/O ----------------
 def _read_manifest() -> Optional[dict]:
     try:
         with open(_MANIFEST_PATH, "r", encoding="utf-8") as f:
@@ -30,57 +114,46 @@ def _read_manifest() -> Optional[dict]:
     except Exception:
         return None
 
-def _write_manifest(fp: dict, count: Optional[int]) -> None:
+def _write_manifest(state: dict) -> None:
     os.makedirs(CHROMA_DIR, exist_ok=True)
-    data = {"fingerprint": fp, "doc_count": count}
     with open(_MANIFEST_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+        json.dump(state, f, ensure_ascii=False, indent=2)
 
-def _is_populated() -> Tuple[bool, Optional[int]]:
-    """Chroma에 문서가 들어있는지 확인."""
+# ---------------- 인덱스 유무 ----------------
+def _collection_has_data() -> bool:
     try:
         client = get_client(CHROMA_DIR)
-        col = get_collection(client)
-        try:
-            n = col.count()  # Chroma 0.5+
-            return (n and n > 0), n
-        except Exception:
-            # 일부 버전 호환: count 미지원 시, 에러 없이 get_collection만 돼도 true로 본다.
-            return True, None
+        col = get_collection(client)  # 활성 컬렉션
+        return (col.count() or 0) > 0
     except Exception:
-        return False, 0
+        return False
 
-def ensure_index_ready(path: Optional[str] = None, force: bool = False) -> dict:
+# ---------------- 퍼블릭 API ----------------
+def ensure_index_ready(force: bool = False) -> dict:
     """
-    - 현재 인덱스가 최신이면 아무 것도 안 함
-    - 비었거나 PDF가 바뀌었으면 ingest_pdf() 실행
-    - force=True 이면 무조건 재인덱싱
+    force=True  → 강제 재인덱싱
+    force=False → (옵션) 변경 감지 후 필요 시 재인덱싱
+    AUTO_INDEX_ON_QUERY=false이면 질의 시점 자동 인덱싱은 하지 않음
     """
-    use_path = os.path.abspath(path or DOC_PATH)
-    if not os.path.exists(use_path):
-        raise FileNotFoundError(use_path)
+    if not AUTO_INDEX_ON_QUERY and not force:
+        return {"indexed": False, "reason": "disabled_on_query"}
 
     with _LOCK:
-        fp = _fingerprint(use_path)
-        m = _read_manifest()
-        populated, n = _is_populated()
-        fresh = (m is not None) and (m.get("fingerprint") == fp) and populated
+        pdf_fp = _pdf_fingerprint()
+        mongo_map = _mongo_latest_map(0 if force else SAMPLE_LIMIT)
+        manifest = _read_manifest()
+        populated = _collection_has_data()
+
+        current = {"pdf": pdf_fp, "mongo_latest": mongo_map}
+        fresh = populated and (manifest == current)
 
         if force or not fresh:
-            res = ingest_pdf(use_path)
-            populated, n = _is_populated()
-            _write_manifest(fp, n or res.get("documents"))
+            res = ingest_all()
+            _write_manifest(current)
             return {
                 "indexed": True,
                 "reason": "forced" if force else "stale_or_missing",
-                "documents": res.get("documents"),
-                "pages": res.get("pages"),
-                "used_path": use_path,
+                "result": res,
             }
         else:
-            return {
-                "indexed": False,
-                "reason": "up_to_date",
-                "documents": n,
-                "used_path": use_path,
-            }
+            return {"indexed": False, "reason": "up_to_date"}

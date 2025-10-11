@@ -7,9 +7,9 @@
 # ================================================================
 
 # 🔎 쿼리 임베딩 → 검색(+간단 쿼리 확장)
-from typing import List, Dict
+from typing import List, Dict, Optional
 from sentence_transformers import SentenceTransformer
-from .config import CHROMA_DIR, TOP_K, FINAL_K
+from .config import CHROMA_DIR, TOP_K, FINAL_K, COLLECTION_NAME
 from .store import get_client, get_collection
 
 _model = None
@@ -19,13 +19,11 @@ def embedder():
         _model = SentenceTransformer("intfloat/multilingual-e5-base")
     return _model
 
-# 👉 빠른 성능 개선: 자주 쓰는 도메인 동의어 확장
 SYNONYMS = {
     "병결": ["본인의 질병", "질병으로 결석", "의료기관 진단서", "진료확인서", "출석 인정", "결석 사유"],
+    "서류": ["증빙서류", "증빙 자료", "제출 서류", "필요 서류"],
     "결혼": ["본인의 결혼", "청첩장", "출석 인정 7일"],
-    "사망": ["부모 사망", "배우자 사망", "사망 진단서", "가족관계증명서"],
-    "출산": ["배우자 출산", "출산 관련 증명서", "가족관계증명서"],
-    "증빙서류": ["서류", "제출 서류", "증빙", "증빙 자료"],
+    "사망": ["부모·배우자 사망", "사망 진단서", "가족관계증명서"],
 }
 
 def expand_query(q: str) -> str:
@@ -35,31 +33,40 @@ def expand_query(q: str) -> str:
             expanded.extend(syns)
     return " ; ".join(expanded)
 
-def retrieve(query: str, k: int = TOP_K) -> List[Dict]:
+def retrieve(query: str, k: int = TOP_K,
+             filters: Optional[Dict] = None) -> List[Dict]:
+    """
+    filters 예시:
+      {"source_type": ["pdf"], "dataset": ["규정집","공지"]}
+    """
     model = embedder()
     q = expand_query(query)
     qvec = model.encode([f"query: {q}"], convert_to_numpy=True, normalize_embeddings=True)[0]
 
     client = get_client(CHROMA_DIR)
-    col = get_collection(client)
+    col = get_collection(client, name=COLLECTION_NAME)
 
-    res = col.query(
-        query_embeddings=[qvec.tolist()],
-        n_results=k,
-        include=["documents", "metadatas", "distances"],
-    )
+    include = ["documents", "metadatas", "distances"]
+    where = None
+    if filters:
+        # Chroma where 필터: {"$and":[{"source_type":{"$in":["pdf"]}},{"dataset":{"$in":["규정집"]}}]}
+        clauses = []
+        for key, vals in filters.items():
+            clauses.append({key: {"$in": vals}})
+        where = {"$and": clauses} if clauses else None
+
+    res = col.query(query_embeddings=[qvec.tolist()], n_results=k, include=include, where=where)
 
     docs = res.get("documents", [[]])[0]
     metas = res.get("metadatas", [[]])[0]
     dists = res.get("distances", [[]])[0]
     ids_list = (res.get("ids", [[]])[0]
                 if "ids" in res and len(res["ids"]) > 0
-                else [f"{m.get('page','?')}-{i}" for i, m in enumerate(metas)])
+                else [f"{m.get('source_type','?')}::{i}" for i, m in enumerate(metas)])
 
     items = []
     for i, (doc, meta) in enumerate(zip(docs, metas)):
         sim = 1.0 - float(dists[i]) if i < len(dists) else 0.0
         items.append({"id": ids_list[i], "text": doc, "meta": meta, "score": sim})
 
-    # 최종 사용량 제한
     return sorted(items, key=lambda x: x["score"], reverse=True)[:FINAL_K]

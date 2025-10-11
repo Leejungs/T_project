@@ -6,16 +6,28 @@
 #   - 문서 삽입/검색용 기본 인터페이스 제공
 # ================================================================
 
+import os
 import chromadb
-from chromadb.config import Settings
+from .config import CHROMA_DIR, ACTIVE_NAME_FILE, COLLECTION_PREFIX
 
-def get_client(persist_dir: str):
-    """Chroma 클라이언트 생성"""
-    return chromadb.Client(Settings(persist_directory=persist_dir, anonymized_telemetry=False))
+def _read_active_name():
+    try:
+        with open(ACTIVE_NAME_FILE, "r", encoding="utf-8") as f:
+            name = f.read().strip()
+            if name: return name
+    except Exception:
+        pass
+    # 초기값 없으면 A로
+    return f"{COLLECTION_PREFIX}_A"
 
-def get_collection(client, name="school_rules"):
-    """컬렉션 가져오기 (없으면 새로 생성)"""
+def get_client(persist_dir: str = CHROMA_DIR):
+    return chromadb.Client(chromadb.config.Settings(
+        is_persistent=True, persist_directory=persist_dir
+    ))
+
+def get_collection(client, name: str | None = None):
+    name = name or _read_active_name()
     try:
         return client.get_collection(name=name)
-    except:
-        return client.create_collection(name=name, metadata={"hnsw:space": "cosine"})
+    except Exception:
+        return client.create_collection(name=name)
