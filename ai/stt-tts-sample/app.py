@@ -103,20 +103,30 @@ async def _warmup():
         return
     warmup_state.update({"running": True, "done": False, "started_at": time.time(), "steps": []})
     try:
+        _step("ensure_index_ready()")
+        await asyncio.to_thread(ensure_index_ready, False)
+
         _step("load embedder()")
         await asyncio.to_thread(embedder)
 
-        _step("retrieve('ping')")  # Chroma 커넥션/캐시만 예열
+        _step("retrieve('웜업 질문')")
         await asyncio.to_thread(retrieve, "웜업 질문", 1)
 
-        _step("LLM ping")
-        _ = chat(
-            messages=[{"role": "user", "content": "ping"}],
-            temperature=0.0, max_tokens=1, timeout_s=6
-        )
+        # 위 1)에서 수정한 LLM 핑 호출
+        try:
+            _step("LLM ping")
+            _ = chat(messages=[{"role": "user", "content": "ping"}], temperature=0.0, max_tokens=1)
+            _step("LLM ping ok")
+        except Exception as e:
+            _step(f"LLM ping failed: {e}")
+
         _step("all done")
+    except Exception as e:
+        # ← 예외를 여기서 삼켜주어야 'Task exception was never retrieved'가 안 뜹니다.
+        _step(f"warmup error: {type(e).__name__}: {e}")
     finally:
         warmup_state.update({"running": False, "done": True, "finished_at": time.time()})
+
 
 @app.on_event("startup")
 async def on_startup():
@@ -441,3 +451,14 @@ def rag_debug_mongo():
         out["error"] = f"{type(e).__name__}: {e}"
         out["trace"] = traceback.format_exc(limit=3)
     return out
+
+# -- 임시 핑 테스트
+@app.get("/llm/ping")
+def llm_ping():
+    try:
+        msg = [{"role":"user","content":"ping"}]
+        txt = llm_chat(messages=msg, temperature=0.0, max_tokens=4)  # timeout_s 인자 넣지 말 것
+        return {"ok": True, "model": "OPENAI_MODEL from llm_runtime/.env", "answer": txt}
+    except Exception as e:
+        import traceback
+        return {"ok": False, "error": str(e), "trace": traceback.format_exc(limit=2)}

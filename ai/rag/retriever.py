@@ -6,67 +6,69 @@
 #     반환값에 ids가 있으면 사용, 없으면 메타데이터로 대체 ID 생성합니다.
 # ================================================================
 
-# 🔎 쿼리 임베딩 → 검색(+간단 쿼리 확장)
+# rag/retriever.py
+import os
 from typing import List, Dict, Optional
-from sentence_transformers import SentenceTransformer
-from .config import CHROMA_DIR, TOP_K, FINAL_K, COLLECTION_NAME
 from .store import get_client, get_collection
+from .config import CHROMA_DIR, COLLECTION_NAME, TOP_K
+from sentence_transformers import SentenceTransformer
+import numpy as np
+from .ingest import embedder
 
-_model = None
-def embedder():
-    global _model
-    if _model is None:
-        _model = SentenceTransformer("intfloat/multilingual-e5-base")
-    return _model
+# 단일 임베더 재사용 (ingest.py와 같은 모델명이어야 함)
+_EMBEDDER = None
+def _embedder():
+    global _EMBEDDER
+    if _EMBEDDER is None:
+        import os
+        model_name = os.getenv("EMBEDDER_MODEL", "intfloat/multilingual-e5-small")
+        _EMBEDDER = SentenceTransformer(model_name)
+    return _EMBEDDER
 
-SYNONYMS = {
-    "병결": ["본인의 질병", "질병으로 결석", "의료기관 진단서", "진료확인서", "출석 인정", "결석 사유"],
-    "서류": ["증빙서류", "증빙 자료", "제출 서류", "필요 서류"],
-    "결혼": ["본인의 결혼", "청첩장", "출석 인정 7일"],
-    "사망": ["부모·배우자 사망", "사망 진단서", "가족관계증명서"],
-}
+def _encode_query(q: str) -> np.ndarray:
+    # 💡 e5는 query/passsage 프리픽스를 반드시 맞춰야 함
+    emb = _embedder().encode([f"query: {q.strip()}"],
+                             convert_to_numpy=True, normalize_embeddings=True)
+    return emb[0]
 
-def expand_query(q: str) -> str:
-    expanded = [q]
-    for k, syns in SYNONYMS.items():
-        if k in q:
-            expanded.extend(syns)
-    return " ; ".join(expanded)
-
-def retrieve(query: str, k: int = TOP_K,
-             filters: Optional[Dict] = None) -> List[Dict]:
-    """
-    filters 예시:
-      {"source_type": ["pdf"], "dataset": ["규정집","공지"]}
-    """
+def retrieve(query: str, k: int = 6, filters=None):
     model = embedder()
-    q = expand_query(query)
-    qvec = model.encode([f"query: {q}"], convert_to_numpy=True, normalize_embeddings=True)[0]
+    qvec = model.encode([f"query: {query}"], convert_to_numpy=True, normalize_embeddings=True)[0]
 
     client = get_client(CHROMA_DIR)
     col = get_collection(client, name=COLLECTION_NAME)
 
-    include = ["documents", "metadatas", "distances"]
-    where = None
-    if filters:
-        # Chroma where 필터: {"$and":[{"source_type":{"$in":["pdf"]}},{"dataset":{"$in":["규정집"]}}]}
-        clauses = []
-        for key, vals in filters.items():
-            clauses.append({key: {"$in": vals}})
-        where = {"$and": clauses} if clauses else None
+    res = col.query(
+        query_embeddings=[qvec.tolist()],
+        n_results=k,
+        include=["documents", "metadatas", "distances"],  # 'ids'는 include 대상 아님
+        where=filters or None,
+    )
 
-    res = col.query(query_embeddings=[qvec.tolist()], n_results=k, include=include, where=where)
+    docs  = (res.get("documents") or [[]])[0]
+    metas = (res.get("metadatas") or [[]])[0]
+    dists = (res.get("distances") or [[]])[0]
+    ids   = (res.get("ids") or [[]])[0] if res.get("ids") is not None else [None] * len(docs)
 
-    docs = res.get("documents", [[]])[0]
-    metas = res.get("metadatas", [[]])[0]
-    dists = res.get("distances", [[]])[0]
-    ids_list = (res.get("ids", [[]])[0]
-                if "ids" in res and len(res["ids"]) > 0
-                else [f"{m.get('source_type','?')}::{i}" for i, m in enumerate(metas)])
+    chunks = []
+    for i, doc in enumerate(docs):
+        meta = metas[i] if i < len(metas) else {}
+        dist = dists[i] if i < len(dists) else None
+        cid  = ids[i]   if i < len(ids)   else None
 
-    items = []
-    for i, (doc, meta) in enumerate(zip(docs, metas)):
-        sim = 1.0 - float(dists[i]) if i < len(dists) else 0.0
-        items.append({"id": ids_list[i], "text": doc, "meta": meta, "score": sim})
+        # 점수는 거리 → 유사도로 단순 변환(가까울수록 높게)
+        score = None
+        try:
+            if dist is not None:
+                score = 1.0 - float(dist)
+        except Exception:
+            pass
 
-    return sorted(items, key=lambda x: x["score"], reverse=True)[:FINAL_K]
+        chunks.append({
+            "id": cid,
+            "text": doc,
+            "meta": meta or {},
+            "score": score,
+        })
+
+    return chunks
