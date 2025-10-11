@@ -66,8 +66,8 @@
     .right {
       flex: 1;
       display: flex;
-      justify-content: center;   /* 가로 중앙 */
-      align-items: center;       /* 세로 중앙 */
+      justify-content: center;
+      align-items: center;
       background: #f9f9f9;
     }
 
@@ -152,28 +152,28 @@
       font-size: 14px;
       display: none;
     }
-    /* ✅ 반응형 (모바일 대응) */
-  @media (max-width: 900px) {
-    .container {
-      width: 95vw;
-      height: auto;
-      flex-direction: column;
+
+    @media (max-width: 900px) {
+      .container {
+        width: 95vw;
+        height: auto;
+        flex-direction: column;
+      }
+      .left {
+        flex: none;
+        width: 100%;
+        text-align: center;
+        padding: 20px;
+      }
+      .left h1 { font-size: 32px; text-align:center; }
+      .left p { font-size: 14px; text-align:center; }
+      .character-center { display: none; }
+      .login-box {
+        width: 90%;
+        margin: 20px auto;
+        padding: 20px;
+      }
     }
-    .left {
-      flex: none;
-      width: 100%;
-      text-align: center;
-      padding: 20px;
-    }
-    .left h1 { font-size: 32px; text-align:center; }
-    .left p { font-size: 14px; text-align:center; }
-    .character-center { display: none; }
-    .login-box {
-      width: 90%;
-      margin: 20px auto;
-      padding: 20px;
-    }
-  }
 
     #guestBtn { background:#6b7280 }
     #guestBtn:hover { background:#565e6c }
@@ -211,7 +211,7 @@
   <div id="toast" class="toast"></div>
 
   <script>
-   const API_BASE = window.location.origin;
+    const API_BASE = window.location.origin;
 
     function toast(msg){
       const t = document.getElementById("toast");
@@ -250,11 +250,12 @@
       try{
         btn.disabled = true;
 
+        // ✅ uid 키 추가해서 Flask 호환성 확보
         const res = await fetch(`${API_BASE}/api/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ id, password })
+          body: JSON.stringify({ id, uid: id, password })
         });
 
         const data = await res.json().catch(()=> ({}));

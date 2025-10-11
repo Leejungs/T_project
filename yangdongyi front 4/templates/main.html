@@ -72,16 +72,90 @@
     box-shadow:inset 0 10px 18px rgba(0,0,0,.03), 0 18px 40px rgba(23,57,132,.08);
     padding:38px 36px;
   }
-  .tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:18px;}
-  .tile{
-    background:#f9fbff; border-radius:18px; padding:50px; box-shadow:0 3px 0 #e3ecff inset, var(--shadow);
-    display:flex; gap:14px; align-items:center; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease;
-  }
-  .tile:hover{transform:translateY(-2px); box-shadow:0 10px 28px rgba(0,0,0,.08)}
-  .tile .ic{width:56px; height:56px; border-radius:14px; display:grid; place-items:center; background:#e9f1ff; font-size:22px;}
-  .tile .txt .k{font-weight:750}
-  .tile .txt .s{font-size:13px; color:var(--muted); margin-top:2px}
-  a.tile{ display:flex; text-decoration:none; color:inherit; }
+/* ✨ 카드 안내판 효과 */
+/* ✨ 카드 전체를 덮는 팝업형 스타일 */
+.panel {
+  position: relative; /* 오버레이 기준점 */
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  position: relative;
+}
+
+.tile {
+  background: #f9fbff;
+  border-radius: 18px;
+  padding: 50px;
+  box-shadow: 0 3px 0 #e3ecff inset, var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  width: 100%;
+  height: 180px;
+  overflow: hidden;
+  position: relative;
+  z-index: 0;
+}
+
+/* 카드 hover 시 살짝만 떠오름 */
+.tile:hover {
+  transform: scale(1.03);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  z-index: 5;
+}
+
+/* ✅ 보드 전체 덮는 오버레이 */
+.tile-overlay {
+  position: absolute;
+  inset: -40px; /* 살짝 크게 잡아 패널 전체 덮기 */
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 60px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.25);
+  z-index: 50;
+  display: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+/* hover 시 오버레이 표시 */
+.tile:hover .tile-overlay {
+  display: block;
+  opacity: 1;
+}
+
+/* 기존 텍스트/아이콘 숨기기 */
+.tile:hover .txt,
+.tile:hover .ic {
+  display: none;
+}
+
+/* hover 중에도 다른 카드가 움직이지 않도록 고정 */
+.tiles .tile:hover {
+  position: relative;
+  width: 100%;
+  height: 180px;
+}
+
+/* ✅ 오버레이 텍스트 스타일 */
+.tile-overlay h3 {
+  margin-top: 0;
+  font-size: 22px;
+  margin-bottom: 20px;
+}
+
+.tile-overlay ul {
+  padding-left: 20px;
+  line-height: 1.8;
+  font-size: 16px;
+}
 
   /* ===== Assistant ===== */
   .assistant-wrap{
@@ -157,6 +231,7 @@
   .sb-item .icon img.emoji{ width:16px; height:16px; display:block; }
   .tile .ic img.emoji{ width:28px; height:28px; display:block; }
   .chip-icon img.emoji, .mic img.emoji{ width:20px; height:20px; display:block; margin:0 auto; }
+  
 </style>
 </head>
 <body class="sidebar-closed">
@@ -200,37 +275,119 @@
       </div>
     </header>
 
-    <section class="content">
-      <div class="board">
-        <div class="panel">
-          <div class="tiles">
-            <a href="feature.html?feature=schedule" class="tile">
-              <div class="ic">🗓️</div>
-              <div class="txt"><div class="k">수업 시간표</div><div class="s">이번 주 수업 및 강의실</div></div>
-            </a>
-            <a href="feature.html?feature=cert" class="tile">
-              <div class="ic">🧾</div>
-              <div class="txt"><div class="k">자격증 안내</div><div class="s">추천 자격증/시험일정</div></div>
-            </a>
-            <a href="feature.html?feature=grades" class="tile">
-              <div class="ic">🧑‍🎓</div>
-              <div class="txt"><div class="k">학점 조회</div><div class="s">누적/학기별 성적</div></div>
-            </a>
-            <a href="feature.html?feature=eclass" class="tile">
-              <div class="ic">💻</div>
-              <div class="txt"><div class="k">eClass</div><div class="s">과제/공지 바로가기</div></div>
-            </a>
-            <a href="feature.html?feature=library" class="tile">
-              <div class="ic">📚</div>
-              <div class="txt"><div class="k">도서관</div><div class="s">대출/연장/좌석 현황</div></div>
-            </a>
-            <a href="feature.html?feature=graduate" class="tile">
-              <div class="ic">🎓</div>
-              <div class="txt"><div class="k">졸업 학점 이수</div><div class="s">전공/교양 이수체크</div></div>
-            </a>
+<section class="content">
+  <div class="board">
+    <div class="panel">
+      <div class="tiles">
+
+        <!-- ✅ 수업 시간표 -->
+        <div class="tile">
+          <div class="ic">🗓️</div>
+          <div class="txt">
+            <div class="k">수업 시간표</div>
+            <div class="s">이번 주 수업 및 강의실</div>
+          </div>
+          <div class="tile-overlay">
+            <h3>📅 이번 주 수업 시간표</h3>
+            <ul>
+              <li>월요일 - 알고리즘 - 09:00 ~ 10:30 (C201)</li>
+              <li>화요일 - 데이터베이스 - 11:00 ~ 12:30 (A304)</li>
+              <li>수요일 - 인공지능 기초 - 13:00 ~ 14:30 (B105)</li>
+              <li>목요일 - 웹프로그래밍 - 15:00 ~ 16:30 (D202)</li>
+              <li>금요일 - 프로젝트 실습 - 10:00 ~ 12:00 (Lab 2)</li>
+            </ul>
           </div>
         </div>
+
+        <!-- ✅ 자격증 안내 -->
+        <div class="tile">
+          <div class="ic">🧾</div>
+          <div class="txt">
+            <div class="k">자격증 안내</div>
+            <div class="s">추천 자격증 / 시험일정</div>
+          </div>
+          <div class="tile-overlay">
+            <h3>🧾 추천 자격증 & 시험 일정</h3>
+            <ul>
+              <li>정보처리기사 – 시험일: 2025.10.20 (접수: ~10.05)</li>
+              <li>SQLD 자격증 – 시험일: 2025.11.12 (접수: ~10.30)</li>
+              <li>리눅스마스터 2급 – 시험일: 2025.12.03 (접수: ~11.20)</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- ✅ 학점 조회 -->
+        <div class="tile">
+          <div class="ic">🧑‍🎓</div>
+          <div class="txt">
+            <div class="k">학점 조회</div>
+            <div class="s">누적 / 학기별 성적</div>
+          </div>
+          <div class="tile-overlay">
+            <h3>📊 학점 요약</h3>
+            <ul>
+              <li>누적 평균 학점: <strong>3.85 / 4.5</strong></li>
+              <li>전공 평균 학점: 3.92</li>
+              <li>교양 평균 학점: 3.78</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- ✅ eClass -->
+        <div class="tile">
+          <div class="ic">💻</div>
+          <div class="txt">
+            <div class="k">eClass</div>
+            <div class="s">과제 / 공지 바로가기</div>
+          </div>
+          <div class="tile-overlay">
+            <h3>💻 과제 및 공지사항</h3>
+            <ul>
+              <li>[과제] AI 프로젝트 보고서 – 마감: 2025.10.07</li>
+              <li>[과제] 데이터 분석 중간 보고서 – 마감: 2025.10.10</li>
+              <li>[공지] 기말 프로젝트 발표 – 2025.12.01 예정</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- ✅ 도서관 -->
+        <div class="tile">
+          <div class="ic">📚</div>
+          <div class="txt">
+            <div class="k">도서관</div>
+            <div class="s">대출 / 연장 / 좌석 현황</div>
+          </div>
+          <div class="tile-overlay">
+            <h3>📚 도서관 현황</h3>
+            <ul>
+              <li>현재 대출 중: 2권 / 최대 5권</li>
+              <li>반납 예정일: 2025.10.14</li>
+              <li>좌석 현황: 68% 사용 중 (잔여 32%)</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- ✅ 졸업 학점 이수 -->
+        <div class="tile">
+          <div class="ic">🎓</div>
+          <div class="txt">
+            <div class="k">졸업 학점 이수</div>
+            <div class="s">전공 / 교양 이수체크</div>
+          </div>
+          <div class="tile-overlay">
+            <h3>🎓 졸업 요건 진행 상황</h3>
+            <ul>
+              <li>전공 이수: 78 / 80 학점</li>
+              <li>교양 이수: 28 / 30 학점</li>
+              <li>총 이수: 125 / 130 학점</li>
+            </ul>
+          </div>
+        </div>
+
       </div>
+    </div>
+  </div>
+</section>
 
       <!-- Assistant -->
       <div class="assistant-wrap">
