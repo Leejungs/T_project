@@ -13,10 +13,10 @@ LLM 호출은 `ai/llm_runtime` 모듈(예: GPT-4o-mini)을 통해 이뤄지며, 
 ai/stt-tts-sample/
 ├─ app.py                 # FastAPI 메인 서버 (STT/TTS/VoiceChat/RAG API + Warmup)
 ├─ guard.py               # 간단한 가드(욕설/PII 등) 필터
-├─ requirements.txt       # 서버 의존성
 ├─ .env                   # RAG 및 서버 동작 관련 환경설정(로컬 실행용)
 └─ static/
    └─ index.html          # 테스트용 프론트 페이지 (http://127.0.0.1:9000/)
+└─ requirements.txt          # 서버 의존성
 ```
 
 > ⚠️ **LLM API 키**는 여기 `.env`가 아니라 **`ai/llm_runtime/.env`** 에 넣습니다.  
