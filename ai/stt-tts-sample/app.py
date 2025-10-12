@@ -452,7 +452,7 @@ def rag_debug_mongo():
         out["trace"] = traceback.format_exc(limit=3)
     return out
 
-# -- 임시 핑 테스트
+# -- 임시 테스트
 @app.get("/llm/ping")
 def llm_ping():
     try:
@@ -462,3 +462,11 @@ def llm_ping():
     except Exception as e:
         import traceback
         return {"ok": False, "error": str(e), "trace": traceback.format_exc(limit=2)}
+
+@app.get("/rag/debug/count")
+def rag_debug_count():
+    from rag.store import get_client, get_collection
+    from rag.config import CHROMA_DIR, COLLECTION_NAME
+    cli = get_client(CHROMA_DIR)
+    col = get_collection(cli, name=COLLECTION_NAME)
+    return {"chroma_dir": CHROMA_DIR, "collection": COLLECTION_NAME, "count": col.count()}
