@@ -15,7 +15,8 @@ ai/llm_runtime/
 ├─ .env                 # OpenAI API 키/모델 설정(로컬 전용, Git 업로드 금지)
 ├─ config.py            # .env 로드, 공용 설정 객체
 ├─ llm_client.py        # GPT-4o-mini 채팅 래퍼 (프로덕션에서 import)
-└─ test_llm.py          # 단독 동작 테스트 스크립트
+├─ test_llm.py          # 단독 동작 테스트 스크립트
+└─ requirements.txt          # 서버 의존성
 ```
 
 > ⚠️ `.env`는 **반드시** `ai/llm_runtime/` 폴더에 위치해야 하며, 절대 저장소에 커밋하지 마세요.

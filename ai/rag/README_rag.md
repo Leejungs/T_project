@@ -20,7 +20,8 @@ ai/rag/
 ├─ auto_index.py             # 변경 감지/강제 인덱싱 제어 (manifest)
 ├─ retriever.py              # 쿼리 임베딩/유사도 검색/필터 빌드
 ├─ qa.py                     # 검색 결과를 LLM 프롬프트로 조합/최종 답변
-└─ chroma_db/                # 로컬 Chroma 데이터 디렉토리(.gitignore 권장)
+├─ chroma_db/                # 로컬 Chroma 데이터 디렉토리(.gitignore 권장)
+└─ requirements.txt          # 서버 의존성
 ```
 
 ---
