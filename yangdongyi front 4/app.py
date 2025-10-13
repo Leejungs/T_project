@@ -220,25 +220,25 @@ def ping():
 # ----------------------------
 # 7) 페이지 라우트 (HTML 서빙)
 # ----------------------------
-@app.get("/")
+@app.get("/")   
 def serve_main():
-    return send_from_directory(".", "main.html")
+    return send_from_directory("templates", "main.html")
 
 @app.get("/login")
 def serve_login():
-    return send_from_directory(".", "login.html")
+    return send_from_directory("templates", "login.html")
 
 @app.get("/signup")
 def serve_signup():
-    return send_from_directory(".", "signup.html")
+    return send_from_directory("templates", "signup.html")
 
 @app.get("/feature")
 def serve_feature():
-    return send_from_directory(".", "feature.html")
+    return send_from_directory("templates", "feature.html")
 
 @app.get("/guest")
 def serve_guest():
-    return send_from_directory(".", "guest.html")
+    return send_from_directory("templates", "guest.html")
 
 # .html 별칭
 @app.get("/main.html")
@@ -251,23 +251,23 @@ def serve_main_html():
         "role": session.get("role"),
     }
 
-    return send_from_directory(".", "main.html")
+    return send_from_directory("templates", "main.html")
 
 @app.get("/login.html")
 def serve_login_html():
-    return send_from_directory(".", "login.html")
+    return send_from_directory("templates", "login.html")
 
 @app.get("/signup.html")
 def serve_signup_html():
-    return send_from_directory(".", "signup.html")
+    return send_from_directory("templates", "signup.html")
 
 @app.get("/feature.html")
 def serve_feature_html():
-    return send_from_directory(".", "feature.html")
+    return send_from_directory("templates", "feature.html")
 
 @app.get("/guest.html")
 def serve_guest_html():
-    return send_from_directory(".", "guest.html")
+    return send_from_directory("templates", "guest.html")
 
 @app.get("/favicon.ico")
 def favicon():
