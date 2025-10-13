@@ -73,6 +73,23 @@ TTS_VOICE = os.getenv("TTS_VOICE", "ko-KR-SunHiNeural")
 # -----------------------------------------------------------------------------
 app = FastAPI(title="STT/TTS + GPT-4o-mini", version="1.2.0")
 
+# -----------------------------------------------------------------------------
+# ✅ CORS 설정 (프론트 연결용)
+# -----------------------------------------------------------------------------
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:8001",   # 프론트 주소
+        "http://localhost:8001",   # 일부 브라우저용
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 # 정적 파일 (index.html 등)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -335,7 +352,7 @@ async def voice_chat(file: UploadFile = File(...)):
         raise HTTPException(status_code=502, detail=f"voice-chat TTS error: {e}")
 
     return VoiceChatResponse(
-        user_text=user_text,
+        user_text=user_text,    
         assistant_text=assistant_text,
         audio_b64=audio_b64,
         audio_mime="audio/mpeg",
