@@ -1098,7 +1098,8 @@ async function send() {
     const chatRes = await fetch(`${API_BASE}/rag/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: text })  // 👈 FastAPI에 query 전달
+      body: JSON.stringify({ query: text }),  // 👈 FastAPI에 query 전달
+      mode: "cors"
     });
     const data = await chatRes.json();
 
