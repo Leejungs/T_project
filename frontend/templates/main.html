@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>양동이 챗봇 메인 페이지</title>
+<style>
+  :root{
+    --brand:#1565d8; --brand-dark:#0f4aa4;
+    --bg:#f3f6fb; --card:#ffffff;
+    --text:#1f2a37; --muted:#6b7280;
+    --shadow:0 8px 24px rgba(0,0,0,.06);
+    --sbw:260px;
+    --assist-shift: 120px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"Pretendard","Noto Sans KR",system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,"Malgun Gothic",sans-serif;
+  }
+
+  /* ===== Sidebar ===== */
+  .sidebar{
+    position:fixed; inset:0 auto 0 0; width:var(--sbw); height:100vh;
+    background:linear-gradient(180deg,var(--brand),var(--brand-dark));
+
+    color:#fff; display:flex; flex-direction:column; padding:18px 14px;
+    transition:transform .25s ease; z-index:50;
+  }
+  body.sidebar-closed .sidebar{ transform:translateX(-100%); }
+
+  .sb-top{display:flex; align-items:center; gap:10px; padding:8px 10px 14px 8px; border-bottom:1px solid rgba(255,255,255,.18); margin-bottom:12px;}
+  .logo{display:flex; align-items:center; gap:10px; font-weight:700; font-size:18px;}
+  .logo img{width:28px; height:28px; border-radius:50%; background:#fff}
+  .sb-links{display:flex; flex-direction:column; gap:6px; padding:10px 0}
+  .sb-item{
+    display:flex; align-items:center; gap:10px; padding:12px; border-radius:10px;
+    color:#eaf2ff; text-decoration:none; cursor:pointer; transition:background .18s ease;
+  }
+  .sb-item .icon{width:22px; height:22px; display:grid; place-items:center; background:rgba(255,255,255,.18); border-radius:8px; font-size:13px}
+  .sb-item:hover{background:rgba(255,255,255,.14)}
+  .sb-item.active{background:#fff; color:var(--brand)}
+  .sb-bottom{margin-top:auto; display:flex; align-items:center; gap:10px; padding:10px 12px; opacity:.9}
+  .sb-bottom img{width:44px; height:44px; border-radius:50%; background:#fff}
+  .sb-bottom .role{font-size:12px; opacity:.9}
+
+  /* ===== Main ===== */
+  .main{ min-height:100vh; display:flex; flex-direction:column; margin-left:var(--sbw); transition:margin-left .25s ease; }
+  body.sidebar-closed .main{ margin-left:0; }
+
+  .topbar{
+    height:64px; background:#fff; box-shadow:var(--shadow);
+    padding:0 16px; display:flex; align-items:center; gap:8px; justify-content:space-between;
+    position: sticky; top:0; z-index:60;
+  }
+  .auth-btn{ padding:6px 12px; border:none; border-radius:8px; cursor:pointer; background:#1565d8; color:#fff; font-weight:600; transition:background .2s ease;}
+  .auth-btn:hover{ background:#0f4aa4; }
+  .left-group{display:flex; align-items:center; gap:8px;}
+  .sb-toggle{
+    border:none; background:transparent; width:40px; height:40px; border-radius:10px;
+    font-size:18px; cursor:pointer; display:grid; place-items:center; color:#1f2a37;
+  }
+  .sb-toggle:hover{background:#eef3ff}
+  .topbar .title{font-weight:700; font-size:18px}
+  .right{display:flex; align-items:center; gap:12px; color:var(--muted)}
+
+  .content{flex:1; padding:50px; position:relative;}
+  
+  .board{height:100%; display:grid; place-items:center;}
+  .panel{
+    width:min(1200px, 92%); margin:40px auto 200px;
+    background:#f7faff; border-radius:24px;
+    box-shadow:inset 0 10px 18px rgba(0,0,0,.03), 0 18px 40px rgba(23,57,132,.08);
+    padding:38px 36px;
+  }
+/* ✨ 카드 안내판 효과 */
+/* ✨ 카드 전체를 덮는 팝업형 스타일 */
+/* 패널을 오버레이 기준점으로 */
+/* 패널/오버레이 안의 트위모지 IMG는 항상 작게 고정 */
+.panel img.emoji,
+.tile-overlay img.emoji,
+.overlay-inner img.emoji {
+  width: 24px !important;
+  height: 24px !important;
+  display: inline-block !important;
+  vertical-align: -0.2em;
+}
+
+.tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:18px;}
+
+/* 기본 카드 */
+.tile{
+    background:#f9fbff; border-radius:18px; padding:50px; box-shadow:0 3px 0 #e3ecff inset, var(--shadow);
+    display:flex; gap:14px; align-items:center; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease;
+    text-decoration:none; color:inherit;
+  }
+
+/* ✅ 아이콘 기본 설정 (크기 고정 + 겹침 방지) */
+.tile .ic{width:56px; height:56px; border-radius:14px; display:grid; place-items:center; background:#e9f1ff; font-size:22px;}
+.tile:hover{transform:translateY(-2px); box-shadow:0 10px 28px rgba(0,0,0,.08)}
+.tile .txt .k{font-weight:750}
+.tile .txt .s{font-size:13px; color:var(--muted); margin-top:2px}
+
+.tile .ic img,
+.tile .ic svg,
+.tile .ic span,
+.tile .ic::before {
+  width: 48px !important;
+  height: 48px !important;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* ✅ 오버레이 (처음엔 숨김) */
+.tile-overlay {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  border-radius: 24px;
+  opacity: 0;
+  transform: scale(0.97);
+  transition: all 0.4s ease;
+  pointer-events: none;
+}
+
+/* 내부 텍스트 */
+.overlay-inner {
+  padding: 40px;
+}
+
+.overlay-inner h3 {
+  font-size: 22px;
+  margin-bottom: 20px;
+}
+
+.overlay-inner ul {
+  font-size: 16px;
+  line-height: 1.7;
+  margin-bottom: 25px;
+}
+
+.open-btn {
+  background: var(--brand, #1565d8);
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.tile .ic img,
+.tile .ic svg,
+.tile .ic span,
+.tile .ic twemoji,
+.tile .ic * {
+  max-width: 48px !important;
+  max-height: 48px !important;
+  width: 48px !important;
+  height: 48px !important;
+  flex-shrink: 0 !important;
+  object-fit: contain !important;
+  transform: none !important; /* 부모 transform 무시 */
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+/* 클릭 시 content 중앙에 맞춰 확대 */
+.tile.active {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%) scale(1);
+  width: min(1100px, 90%);
+  height: 600px;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.18);
+  z-index: 200;
+  transition: all 0.4s ease;
+  overflow: hidden;
+}
+
+/* 아이콘 / 텍스트 숨기기 */
+.tile.active .txt,
+.tile.active .ic {
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.9);
+  transition: all 0.2s ease;
+}
+
+/* 내부 흰색 패널 */
+.tile.active .tile-overlay {
+  opacity: 1;
+  pointer-events: auto;
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  border-radius: 24px;
+  transition: all 0.4s ease;
+  box-shadow: none;
+}
+
+/* 내용 자연스럽게 등장 */
+.tile.active .overlay-inner {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s;
+}
+
+.tile .overlay-inner {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+  /* ===== Assistant ===== */
+  .assistant-wrap{
+    position: fixed; bottom: 100px;
+    left: calc(var(--sbw) + (100vw - var(--sbw)) / 2 - var(--assist-shift));
+    transform: translateX(-50%); display:flex; align-items:flex-end; gap:0; z-index:40;
+    pointer-events:auto;
+  }
+  body.sidebar-closed .assistant-wrap{ left: calc(50% - var(--assist-shift)); transform: translateX(-50%); }
+  .yang-stand{ width:400px; height:400px; object-fit:contain; filter:drop-shadow(0 12px 18px rgba(0,0,0,.22)); pointer-events:none; position:relative; top:100px; }
+  .assistant-bar{ position:relative; height:64px; display:grid; grid-template-columns:120px 1fr 100px; align-items:center; gap:12px; background:#3c4250; color:#fff; border-radius:28px; padding:10px 12px; box-shadow:0 14px 30px rgba(0,0,0,.24); margin-left:-100px; width:min(860px, calc((100vw - var(--sbw)) - 300px - 70px)); transition:width .25s ease, margin-left .2s ease; pointer-events:auto; }
+  .assistant-bar::after{ content:""; position:absolute; left:-10px; bottom:30px; width:18px; height:18px; background:#3c4250; transform:rotate(45deg); border-radius:3px; box-shadow:0 6px 12px rgba(0,0,0,.18); }
+  body.sidebar-closed .assistant-bar{ width:min(960px, calc(100vw - 300px - 70px)); }
+  .chip-icon{ width:40px; height:40px; border:none; border-radius:10px; background:rgba(255,255,255,.12); color:#fff; cursor:pointer; margin-right:6px; }
+  .bar-left{display:flex; align-items:center}
+  .bar-center input{ width:100%; height:44px; border:none; outline:none; background:rgba(255,255,255,.12); color:#fff; border-radius:12px; padding:0 12px; font-size:14px; }
+  .mic, .send{ width:44px; height:44px; border:none; border-radius:12px; cursor:pointer; }
+  .mic{ background:rgba(255,255,255,.12); color:#fff; margin-right:6px; }
+  .send{ background:#00a2ff; color:#fff; font-weight:800; }
+
+  /* === 💬 채팅 말풍선 UI === */
+/* 💬 채팅 박스 - 사이드바 구조 기준 완벽 정렬 */
+.chat-box {
+  position: fixed;
+  bottom: 155px; /* 🔥 입력창 위로 정확히 띄우기 */
+  
+  /* 사이드바 있을 때 */
+  left: calc(var(--sbw) + (100vw - var(--sbw)) / 2 - var(--assist-shift));
+  transform: translateX(-32%);
+  
+  width: min(840px, calc(100vw - var(--sbw) - 300px));
+  max-height: 650px;
+  overflow-y: auto; 
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0);
+  z-index: 40; /* ✅ assistant-bar보다 위 */
+  
+  display: flex;  
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+/* 사이드바 닫힘 시 중앙정렬 유지 */
+body.sidebar-closed .chat-box {
+  left: 52%;
+  transform: translateX(-50%);
+  width: min(900px, calc(100vw - 300px));
+}
+.msg.user {
+  background: #1565d8;
+  color: #fff;
+  border-radius: 18px 18px 2px 18px;
+  padding: 10px 16px;
+  margin: 8px 0 8px auto;
+  width: fit-content;
+  max-width: 75%;
+}
+.msg.bot {
+  background: #f1f5ff;
+  color: #1f2a37;
+  border-radius: 18px 18px 18px 2px;
+  padding: 10px 16px;
+  margin: 8px auto 8px 0;
+  width: fit-content;
+  max-width: 75%;
+}
+
+
+  /* ====== 태블릿 규칙 ====== */
+  @media (max-width:1100px){
+    .tiles{grid-template-columns:repeat(2,1fr)}
+    .assistant-wrap{ bottom:110px; }
+    .assistant-bar{ grid-template-columns:100px 1fr 88px; }
+  }
+
+  /* ====== 모바일 규칙(핵심) ====== */
+  @media (max-width:768px){
+    :root{ --sbw: 78vw; --assist-shift:0px; }
+
+    /* 사이드바: 기본 접힘(오버레이 모드) */
+    .sidebar{
+      transform: translateX(-100%);
+      z-index:100;
+    }
+    body.sb-open .sidebar{ transform: translateX(0); }
+    /* 배경 딤 */
+    .sb-dim{
+      position: fixed; inset:0; background:rgba(0,0,0,.35);
+      z-index:90; display:none;
+    }
+    body.sb-open .sb-dim{ display:block; }
+
+    /* 메인 좌여백 제거 */
+    .main{ margin-left:0 !important; }
+    .content{ padding:16px !important; }
+
+    /* 패널/타일 축소 + 1열 */
+    .panel{
+      width:100% !important; margin:12px auto 120px !important;
+      padding:16px !important; border-radius:14px !important;
+      box-shadow:0 6px 16px rgba(0,0,0,.06) !important; background:#fff !important;
+    }
+    .tiles{ grid-template-columns:1fr !important; gap:12px !important; }
+    .tile{ padding:16px !important; border-radius:12px !important; }
+
+    /* 캐릭터 숨김 + 채팅바 중앙 */
+    .yang-stand{ display:none !important; }
+    .assistant-wrap{
+      left:50% !important; bottom:20px !important; transform:translateX(-50%) !important;
+      z-index:40;
+    }
+    .assistant-bar{
+      margin-left:0 !important;
+      width:min(92vw, 680px) !important;
+      grid-template-columns:90px 1fr 88px !important;
+    }
+    /* 사이드바 열릴 때 채팅바 아래로 */
+    body.sb-open .assistant-wrap{ z-index:10; }
+  }
+
+  .sb-item .icon img.emoji{ width:16px; height:16px; display:block; }
+  .tile .ic img.emoji{ width:28px; height:28px; display:block; }
+  .chip-icon img.emoji, .mic img.emoji{ width:20px; height:20px; display:block; margin:0 auto; }
+  
+  /* === 채팅 모드 전환 === */
+body.chatting .panel,
+body.chatting .tiles {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+</style>
+</head>
+<body class="sidebar-closed">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-top">
+      <div class="logo"><img src="image/yangdongi.png" alt="양동이"><span>양동이</span></div>
+    </div>
+    <nav class="sb-links">
+    <!-- 1️⃣ 새 채팅 버튼 -->
+    <a class="sb-item active" id="newChatBtn" href="#">
+      <span class="icon">💬</span>
+      <span>새 채팅</span>
+    </a>
+      
+      <a class="sb-item" href="#"><span class="icon">🏠</span><span>오늘</span></a>
+      <a class="sb-item" href="#"><span class="icon">📅</span><span>지난 7일</span></a>
+      <a class="sb-item" href="#"><span class="icon">📚</span><span>학교 홈페이지</span></a>
+      <a class="sb-item" href="#"><span class="icon">👤</span><span>개인 정보</span></a>
+      <a class="sb-item" href="#"><span class="icon">🎓</span><span>학사 일정</span></a>
+      <a class="sb-item" href="#"><span class="icon">⚙️</span><span>설정</span></a>
+    </nav>
+
+    <!-- #️⃣ 사용자 정보가 채워질 영역 -->
+    <div class="sb-bottom" id="userBox">
+      <img src="image/user.png" alt="사용자">
+      <div class="info">
+        <div><strong id="userName">로그인이 필요합니다</strong></div>
+        <div class="role" id="userMeta">-</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <header class="topbar">
+      <div class="left-group">
+        <button class="sb-toggle" id="toggleBtn">☰</button>
+        <div class="title">양동이 챗봇 1.0 </div>
+      </div>
+
+      <!-- #️⃣ 로그인 상태에 따라 숨길 버튼 -->
+      <div class="right">
+        <span class="muted" id="todayText"></span>
+        <button id="authBtn" class="auth-btn"></button>
+        <button id="logoutBtn" class="auth-btn" style="display:none">로그아웃</button>
+      </div>
+    </header>
+
+<section class="content">
+  <div class="board">
+    <div class="panel">
+      <div class="tiles">
+
+        <!-- ✅ 수업 시간표 -->
+        <!-- 수업 시간표 -->
+<!-- ✅ 수업 시간표 카드 -->
+<!-- ✅ 수업 시간표 -->
+<div class="tile">
+  <div class="ic">🗓️</div>
+  <div class="txt">
+    <div class="k">수업 시간표</div>
+    <div class="s">이번 주 수업 및 강의실</div>
+  </div>
+
+  <div class="tile-overlay">
+    <div class="overlay-inner">
+      <h3>📅 이번 주 수업 시간표</h3>
+      <ul>
+        <li>월요일 - 알고리즘 - 09:00 ~ 10:30 (C201)</li>
+        <li>화요일 - 데이터베이스 - 11:00 ~ 12:30 (A304)</li>
+        <li>수요일 - 인공지능 기초 - 13:00 ~ 14:30 (B105)</li>
+        <li>목요일 - 웹프로그래밍 - 15:00 ~ 16:30 (D202)</li>
+        <li>금요일 - 프로젝트 실습 - 10:00 ~ 12:00 (Lab 2)</li>
+      </ul>
+      <button class="open-btn" onclick="window.location.href='feature.html?feature=schedule'"> 자세히 보기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ 자격증 안내 -->
+<div class="tile">
+  <div class="ic">🧾</div>
+  <div class="txt">
+    <div class="k">자격증 안내</div>
+    <div class="s">추천 자격증 / 시험일정</div>
+  </div>
+
+  <div class="tile-overlay">
+    <div class="overlay-inner">
+      <h3>🧾 추천 자격증 & 시험 일정</h3>
+      <ul>
+        <li>정보처리기사 - 2025.10.20 (접수 마감: 10.05)</li>
+        <li>SQLD - 2025.11.12 (접수 마감: 10.30)</li>
+        <li>리눅스마스터 2급 - 2025.12.03 (접수 마감: 11.20)</li>
+      </ul>
+      <button class="open-btn" onclick="window.location.href='feature.html?feature=license'"> 자세히 보기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ 학점 조회 -->
+<div class="tile">
+  <div class="ic">📊</div>
+  <div class="txt">
+    <div class="k">학점 조회</div>
+    <div class="s">누적 / 학기별 성적</div>
+  </div>
+
+  <div class="tile-overlay">
+    <div class="overlay-inner">
+      <h3>📊 학점 요약</h3>
+      <ul>
+        <li>누적 평균 학점: <strong>3.85 / 4.5</strong></li>
+        <li>전공 평균 학점: 3.92</li>
+        <li>교양 평균 학점: 3.78</li>
+      </ul>
+      <button class="open-btn" onclick="window.location.href='feature.html?feature=grade'"> 자세히 보기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ eClass -->
+<div class="tile">
+  <div class="ic">🖥️</div>
+  <div class="txt">
+    <div class="k">eClass</div>
+    <div class="s">과제</div>
+  </div>
+
+  <div class="tile-overlay">
+    <div class="overlay-inner">
+      <h3>🖥️ 과제 </h3>
+      <ul>
+        <li>[과제] AI 프로젝트 보고서 – 마감: 2025.10.07</li>
+        <li>[과제] 데이터 분석 중간 보고서 – 마감: 2025.10.10</li>
+        <li>[공지] 기말 프로젝트 발표 – 2025.12.01 예정</li>
+      </ul>
+      <button class="open-btn" onclick="window.location.href='feature.html?feature=eclass'"> 자세히 보기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ 공지사항 -->
+<div class="tile">
+  <div class="ic">📢</div>
+  <div class="txt">
+    <div class="k">공지사항</div>
+    <div class="s">학교 공지사항 / 학과 공지사항</div>
+  </div>
+
+  <div class="tile-overlay">
+    <div class="overlay-inner">
+      <h3>📢 공지사항</h3>
+      <ul>
+        <li>학교 공지사항</li>
+        <li>학과 공지사항</li>
+        <li>----------</li>
+      </ul>
+      <button class="open-btn" onclick="window.location.href='feature.html?feature=library'"> 자세히 보기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ 졸업 학점 이수 -->
+<div class="tile">
+  <div class="ic">🎓</div>
+  <div class="txt">
+    <div class="k">졸업 학점 이수</div>
+    <div class="s">전공 / 교양 이수체크</div>
+  </div>
+
+  <div class="tile-overlay">
+    <div class="overlay-inner">
+      <h3>🎓 졸업 요건 진행 상황</h3>
+      <ul>
+        <li>전공 이수: 78 / 80 학점</li>
+        <li>교양 이수: 28 / 30 학점</li>
+        <li>총 이수: 125 / 130 학점</li>
+      </ul>
+      <button class="open-btn" onclick="window.location.href='feature.html?feature=graduate'"> 자세히 보기</button>
+    </div>
+  </div>
+</div>
+
+</section>
+<!-- 💬 채팅 말풍선 박스 -->
+<div class="chat-box" id="chatBox"></div>
+
+      <!-- Assistant -->
+      <div class="assistant-wrap">
+        <img class="yang-stand" src="image/yangdongi.png" alt="양동이">
+        <div class="assistant-bar">
+          <div class="bar-left">
+            <button class="chip-icon">🌐</button>
+            <button class="chip-icon">📘</button>
+            <button class="chip-icon">⚙️</button>
+          </div>
+          <div class="bar-center"><input id="ask" type="text" placeholder="안녕! 난 양동이야. 어떤 점이 궁금해?" /></div>
+          <div class="bar-right" style="display:flex;align-items:center;gap:6px;">
+            <button class="mic">🎙</button>
+            <button class="send" onclick="send()">➜</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 모바일 오버레이 딤 -->
+  <div class="sb-dim"></div>
+
+  <!-- Twemoji -->
+  <!-- ✅ Twemoji는 이 한 번만 존재해야 함 -->
+<!-- twemoji 스크립트 로드 (한 번만) -->
+<script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js" crossorigin="anonymous"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+  // ✅ 카드 아이콘과 패널 내부 아이콘(제목 포함) 모두 Twemoji 적용
+  twemoji.parse(document.body, { folder: 'svg', ext: '.svg' });
+});
+
+  // 오늘 날짜
+  (function(){
+    const el=document.getElementById('todayText');
+    const d=new Date(); const w=['일','월','화','수','목','금','토'][d.getDay()];
+    el.textContent=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${w}`;
+  })();
+
+  // Sidebar toggle (데스크톱: 접기/펼치기, 모바일: 오버레이 열기/닫기)
+  const toggleBtn = document.getElementById('toggleBtn');
+  const dim = document.querySelector('.sb-dim');
+  function isMobile(){ return window.innerWidth <= 768; }
+  function closeAllSidebars(){ document.body.classList.remove('sb-open'); // 모바일 오버레이 닫기
+    // 데스크톱에선 기본 펼침 상태 유지(원하면 아래 줄을 주석 해제)
+    // document.body.classList.add('sidebar-closed');
+  }
+
+  toggleBtn.addEventListener('click', ()=>{
+    if (isMobile()){
+      document.body.classList.toggle('sb-open');
+    } else {
+      document.body.classList.toggle('sidebar-closed');
+    }
+  });
+
+  // 딤 클릭 시 닫기
+  dim.addEventListener('click', closeAllSidebars);
+  // 화면 크기 변경 시 모드 정리
+  window.addEventListener('resize', ()=>{
+    if (isMobile()){
+      // 모바일에서는 메인은 항상 좌여백 없음, 사이드바는 기본 닫힘
+      document.body.classList.add('sidebar-closed');
+    } else {
+      // 데스크톱에서는 오버레이 모드 해제
+      document.body.classList.remove('sb-open');
+    }
+  });
+
+  function send(){
+    const v=document.getElementById('ask').value.trim();
+    if(!v) return;
+    console.log('[ASK]',v);
+    document.getElementById('ask').value='';
+  }
+
+  // ✅ 로그아웃
+  async function logout(){
+    try {
+      await fetch("/api/logout", { method:"POST", credentials:"include" }).catch(()=>{});
+    } catch(_) {}
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("isGuest");
+    sessionStorage.clear();
+    location.href = "login.html";
+  }
+
+  // #️⃣ 세션 정보 → 좌측 하단 박스 & 버튼 상태
+  async function hydrateUserUI() {
+    try {
+      const res = await fetch("/api/me", { credentials: "include" });
+      const data = await res.json().catch(()=> ({}));
+
+      const btn = document.getElementById("authBtn");
+      const logoutBtn = document.getElementById("logoutBtn");
+      const nameEl = document.getElementById("userName");
+      const metaEl = document.getElementById("userMeta");
+
+      if (res.ok && data.ok && data.user) {
+        const u = data.user;
+        nameEl.textContent = u.name || "이름 없음";
+        metaEl.innerHTML = `${u.uid || "-"}<br>${u.department || "-"}`;
+
+        if (btn) btn.style.display = "none";
+        if (logoutBtn) {
+          logoutBtn.style.display = "inline-flex";
+          logoutBtn.onclick = logout;
+        }
+      } else {
+        if (btn) {
+          btn.textContent = "로그인";
+          btn.onclick = ()=> location.href="login.html";
+          btn.style.display = "inline-flex";
+        }
+        if (logoutBtn) logoutBtn.style.display = "none";
+      }
+    } catch (e) {
+      console.warn("세션 조회 실패", e);
+    }
+  }
+  hydrateUserUI();
+document.addEventListener('DOMContentLoaded', function(){
+  const tiles = document.querySelectorAll('.tile');
+  let activeTile = null;
+
+  tiles.forEach(tile => {
+    tile.addEventListener('click', (e) => {
+      e.stopPropagation();
+
+      // 이미 열려 있는 카드 다시 클릭 → 닫기
+      if (tile.classList.contains('active')) {
+        tile.classList.remove('active');
+        activeTile = null;
+        return;
+      }
+
+      // 다른 카드 닫기
+      if (activeTile) activeTile.classList.remove('active');
+
+      // 새 카드 열기
+      tile.classList.add('active');
+      activeTile = tile;
+    });
+  });
+
+  // 바깥 클릭 시 닫기
+  document.addEventListener('click', (e) => {
+    if (activeTile && !activeTile.contains(e.target)) {
+      activeTile.classList.remove('active');
+      activeTile = null;
+    }
+  });
+});
+
+// ✅ FastAPI 서버 주소 (AI 백엔드)
+const API_BASE = "http://127.0.0.1:9000";  // ← app.py 실행 중인 주소로 맞춰야 함
+
+// ✅ 1️⃣ 텍스트 입력 → FastAPI RAG 대화 연결
+async function send() {
+  const input = document.getElementById("ask");
+  const text = input.value.trim();
+  if (!text) return;
+
+  const box = document.getElementById("chatBox");
+  input.value = "";
+
+  // 사용자 말풍선 표시
+  box.innerHTML += `<div class="msg user">🧑‍💻 ${text}</div>`;
+  box.scrollTop = box.scrollHeight;
+
+  try {
+    // --- (1) GPT 대화 요청 ---
+    const chatRes = await fetch(`${API_BASE}/rag/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: text })  // 👈 FastAPI에 query 전달
+    });
+    const data = await chatRes.json();
+
+    // --- (2) 봇 응답 표시 ---
+    box.innerHTML += `<div class="msg bot">🤖 ${data.answer}</div>`;
+    box.scrollTop = box.scrollHeight;
+
+    // --- (3) TTS 음성 변환 요청 ---
+    const ttsRes = await fetch(`${API_BASE}/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: data.answer })
+    });
+    if (ttsRes.ok) {
+      const tts = await ttsRes.json();
+      new Audio(`data:audio/mpeg;base64,${tts.audio_b64}`).play(); // 👈 바로 재생
+    }
+
+  } catch (e) {
+    box.innerHTML += `<div class="msg bot">⚠️ 서버 연결 실패: ${e.message}</div>`;
+  }
+}
+
+// ✅ 2️⃣ 음성 입력 → FastAPI 음성(STT) 대화 연결
+let mediaRecorder, audioChunks = [];
+document.querySelector(".mic").addEventListener("click", async () => {
+
+  // 다시 클릭하면 녹음 종료
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+    return;
+  }
+
+  try {
+    // --- 마이크 녹음 시작 ---
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(audioChunks, { type: "audio/webm" });
+      const fd = new FormData();
+      fd.append("file", blob, "voice.webm");
+
+      // --- (4) FastAPI로 전송 ---
+      const res = await fetch(`${API_BASE}/voice-chat`, {
+        method: "POST",
+        body: fd
+      });
+      const d = await res.json();
+
+      // --- (5) 응답 표시 ---
+      const box = document.getElementById("chatBox");
+      box.innerHTML += `<div class="msg user">🎙️ ${d.user_text}</div>`;
+      box.innerHTML += `<div class="msg bot">🤖 ${d.assistant_text}</div>`;
+      box.scrollTop = box.scrollHeight;
+
+      // --- (6) 봇 음성 재생 ---
+      new Audio(`data:audio/mpeg;base64,${d.audio_b64}`).play();
+    };
+
+    mediaRecorder.start();
+    alert("🎙️ 녹음 시작! 다시 누르면 종료됩니다.");
+
+  } catch (err) {
+    alert("마이크 권한을 허용해주세요!");
+  }
+});
+
+async function send() {
+  const input = document.getElementById("ask");
+  const text = input.value.trim();
+  if (!text) return;
+
+  // ✅ 카드 숨기기
+  document.body.classList.add("chatting");
+
+  const box = document.getElementById("chatBox");
+  input.value = "";
+
+  box.innerHTML += `<div class="msg user">🧑‍💻 ${text}</div>`;
+  box.scrollTop = box.scrollHeight;
+
+  try {
+    const chatRes = await fetch(`${API_BASE}/rag/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: text })
+    });
+    const data = await chatRes.json();
+
+    box.innerHTML += `<div class="msg bot">🤖 ${data.answer}</div>`;
+    box.scrollTop = box.scrollHeight;
+
+    const ttsRes = await fetch(`${API_BASE}/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: data.answer })
+    });
+    if (ttsRes.ok) {
+      const tts = await ttsRes.json();
+      new Audio(`data:audio/mpeg;base64,${tts.audio_b64}`).play();
+    }
+
+  } catch (e) {
+    box.innerHTML += `<div class="msg bot">⚠️ 서버 연결 실패: ${e.message}</div>`;
+  }
+}
+
+// 새 채팅 버튼 클릭 시 대화창 초기화
+  document.getElementById("newChatBtn").addEventListener("click", function (e) {
+    e.preventDefault();
+
+    const chatBox = document.querySelector(".chat-box"); // 채팅 내용 영역
+    const input = document.querySelector(".chat-input input"); // 입력창
+
+    if (chatBox) {
+      chatBox.innerHTML = ""; // 모든 대화 내용 삭제
+    }
+    if (input) {
+      input.value = ""; // 입력창 비우기
+    }
+
+    // 사용자 피드백 메시지 출력
+    const msg = document.createElement("div");
+    msg.classList.add("system-message");
+    msg.style.textAlign = "center";
+    msg.style.color = "#6b7280";
+    msg.style.margin = "20px 0";
+    msg.textContent = " 새로운 채팅이 시작되었습니다.";
+    chatBox.appendChild(msg);
+  });
+</script>
+
+</body>
+</html>

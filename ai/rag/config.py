@@ -28,6 +28,7 @@ MONGO_UPDATED_FIELD = os.getenv("MONGO_UPDATED_FIELD", "updated_at")
 # --- Chroma 벡터DB ---
 CHROMA_DIR = os.getenv("CHROMA_DIR", str(BASE_DIR / "rag" / "chroma_db"))
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "school_corpus")
+EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "jhgan/ko-sroberta-multitask")
 
 # --- 청크/검색 파라미터 ---
 def _getint(k, d): 

@@ -42,6 +42,11 @@ PARENT_AI_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 if PARENT_AI_DIR not in sys.path:
     sys.path.insert(0, PARENT_AI_DIR)
 
+# add project root to sys.path so we can import from frontend/
+PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, "..", ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 from llm_runtime.llm_client import chat
 from guard import violates_policy
 
@@ -53,9 +58,20 @@ if sys.platform.startswith("win"):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # -----------------------------------------------------------------------------
-# (선택) .env 로드
+# .env 로드 (경로 명시)
 # -----------------------------------------------------------------------------
-load_dotenv()
+# LLM 설정과 RAG/서버 설정을 각기 다른 .env 파일에서 명시적으로 로드
+LLM_RUNTIME_ENV_PATH = os.path.join(PARENT_AI_DIR, "llm_runtime", ".env")
+STT_TTS_ENV_PATH = os.path.join(CURRENT_DIR, ".env")
+
+# .env 파일이 존재하는지 확인하고 로드
+if os.path.exists(LLM_RUNTIME_ENV_PATH):
+    load_dotenv(dotenv_path=LLM_RUNTIME_ENV_PATH)
+    print(f"Loaded .env from: {LLM_RUNTIME_ENV_PATH}")
+
+if os.path.exists(STT_TTS_ENV_PATH):
+    load_dotenv(dotenv_path=STT_TTS_ENV_PATH, override=True)
+    print(f"Loaded .env from: {STT_TTS_ENV_PATH}")
 
 # -----------------------------------------------------------------------------
 # Config (STT/TTS만 유지)
@@ -80,20 +96,17 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://127.0.0.1:8001",   # 프론트 주소
+        "http://localhost:8001",   # 일부 브라우저용
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# 정적 파일 (index.html 등)
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-@app.get("/", include_in_schema=False)
-async def root():
-    """브라우저에서 기본 페이지 표시"""
-    return FileResponse("static/index.html")
+# The /static and / routes are now handled by the mounted Flask app.
 
 # -----------------------------------------------------------------------------
 # 비동기 warmup
@@ -356,131 +369,37 @@ async def voice_chat(file: UploadFile = File(...)):
     )
 
 # -----------------------------------------------------------------------------
-# RAG APIs
+# RAG - Mounted App
 # -----------------------------------------------------------------------------
-from typing import Optional, Dict, List
-from pydantic import BaseModel
-from fastapi import HTTPException
-from rag.auto_index import ensure_index_ready
-from rag.ingest import ingest_all, embedder
-from rag.retriever import retrieve
-from rag.qa import answer as rag_answer
+# All RAG logic is now handled by the self-contained FastAPI app in /rag/app.py
+# It is mounted under the /rag prefix.
+# -----------------------------------------------------------------------------
+from rag.app import app as rag_app
+
+app.mount("/rag", rag_app, name="rag")
+
+
+# -----------------------------------------------------------------------------
+# Frontend - Mount Flask App as main UI
+# -----------------------------------------------------------------------------
+from frontend.app import app as flask_app
+from asgiref.wsgi import WsgiToAsgi
+
+# Mount the Flask app at the root. This will handle all UI routes.
+app.mount("/", WsgiToAsgi(flask_app), name="frontend")
+
+
+# -----------------------------------------------------------------------------
+# Standalone LLM Ping (for testing)
+# -----------------------------------------------------------------------------
 from llm_runtime.llm_client import chat as llm_chat
 
-class IngestAllReq(BaseModel):
-    pdf_paths: Optional[List[str]] = None
-    mongo_query: Optional[Dict] = None
-
-@app.post("/rag/ingest")
-def rag_ingest(req: Optional[IngestAllReq] = None):
-    try:
-        res = ingest_all(pdf_paths=req.pdf_paths if req else None,
-                         mongo_query=req.mongo_query if req else None)
-        # manifest 갱신을 위해 ensure(force=True) 호출
-        auto = ensure_index_ready(force=True)
-        return {"status":"ok","ingest":res,"auto_index":auto}
-    except Exception as e:
-        raise HTTPException(500, f"Ingest failed: {e}")
-
-class RagChatReq(BaseModel):
-    query: str
-    top_k: int = 6
-    # dataset 등 필터: {"dataset": ["경영학과","전기공학과"]}
-    filters: Optional[Dict[str, List[str]]] = None
-
-@app.post("/rag/chat")
-def rag_chat(req: RagChatReq):
-    q = (req.query or "").strip()
-    if not q:
-        raise HTTPException(status_code=400, detail="Empty query")
-
-    t0 = time.perf_counter()
-
-    # ① 인덱스 최신화 (최초 1회만 의미 있음; 이후엔 빠름)
-    #    여기서 오래 걸리면 첫 질문만 느린 원인 → startup 웜업으로 해소 가능
-    auto = ensure_index_ready(force=False)
-
-    try:
-        # ② 리트리버 파라미터 안전 범위로 클램프 (너무 큰 top_k 방지)
-        k = max(1, min(8, req.top_k or 6))
-
-        # ③ 검색 (빠르게 끝나야 정상)
-        chunks = retrieve(q, k=k, filters=req.filters)
-
-        # ④ LLM 합성 (rag/qa.py에서 timeout/컨텍스트 제한 적용되어 있어야 함)
-        qa = rag_answer(q, chunks)
-
-        latency_ms = int((time.perf_counter() - t0) * 1000)
-        return {
-            "answer": qa["answer"],
-            "sources": qa["sources"],
-            "auto_index": auto,
-            "latency_ms": latency_ms,   # 디버깅용 지연 시간
-        }
-
-    except TimeoutError:
-        # LLM 타임아웃은 504로 명확히
-        raise HTTPException(status_code=504, detail="LLM timeout")
-    except Exception as e:
-        # 나머지는 502로 래핑
-        raise HTTPException(status_code=502, detail=f"RAG failed: {e}")
-
-@app.post("/rag/preview")
-def rag_preview(req: RagChatReq):
-    try:
-        auto = ensure_index_ready(force=False)
-        chunks = retrieve(req.query, k=req.top_k, filters=req.filters)
-        return {"auto_index": auto, "chunks": [
-            {"page": c["meta"].get("page"),
-             "source_type": c["meta"].get("source_type"),
-             "title": c["meta"].get("title"),
-             "dataset": c["meta"].get("dataset"),
-             "score": round((c.get("score") or 0), 3),
-             "text": c["text"][:500]}
-        for c in chunks]}
-    except Exception as e:
-        raise HTTPException(500, f"Preview failed: {e}")
-
-# ---------- Mongo 디버그 ----------
-from pymongo import MongoClient
-from fastapi import APIRouter
-
-@app.get("/rag/debug/mongo")
-def rag_debug_mongo():
-    import os, traceback
-    from rag.config import MONGO_URI, MONGO_DB, MONGO_COLL, MONGO_UPDATED_FIELD
-    out = {"ok": False, "uri": MONGO_URI, "db": MONGO_DB, "coll": MONGO_COLL, "updated_field": MONGO_UPDATED_FIELD}
-    try:
-        cli = MongoClient(MONGO_URI)
-        db  = cli[MONGO_DB]
-        colls = [c for c in db.list_collection_names() if not c.startswith("system.")]
-        out["collections"] = colls
-        samples = {}
-        for name in colls[:5]:
-            doc = db[name].find_one()
-            samples[name] = {k: doc.get(k) for k in ["title","subject","content","body","summary","text","updated_at"]} if doc else None
-        out["samples"] = samples
-        out["ok"] = True
-    except Exception as e:
-        out["error"] = f"{type(e).__name__}: {e}"
-        out["trace"] = traceback.format_exc(limit=3)
-    return out
-
-# -- 임시 테스트
 @app.get("/llm/ping")
 def llm_ping():
     try:
         msg = [{"role":"user","content":"ping"}]
-        txt = llm_chat(messages=msg, temperature=0.0, max_tokens=4)  # timeout_s 인자 넣지 말 것
+        txt = llm_chat(messages=msg, temperature=0.0, max_tokens=4)
         return {"ok": True, "model": "OPENAI_MODEL from llm_runtime/.env", "answer": txt}
     except Exception as e:
         import traceback
         return {"ok": False, "error": str(e), "trace": traceback.format_exc(limit=2)}
-
-@app.get("/rag/debug/count")
-def rag_debug_count():
-    from rag.store import get_client, get_collection
-    from rag.config import CHROMA_DIR, COLLECTION_NAME
-    cli = get_client(CHROMA_DIR)
-    col = get_collection(cli, name=COLLECTION_NAME)
-    return {"chroma_dir": CHROMA_DIR, "collection": COLLECTION_NAME, "count": col.count()}
