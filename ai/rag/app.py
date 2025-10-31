@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 from pymongo import MongoClient
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.schema import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
