@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>양동이 챗봇 메인 페이지</title>
+<style>
+  :root{
+    --brand:#1565d8; --brand-dark:#0f4aa4;
+    --bg:#f3f6fb; --card:#ffffff;
+    --text:#1f2a37; --muted:#6b7280;
+    --shadow:0 8px 24px rgba(0,0,0,.06);
+    --sbw:260px;
+    --assist-shift: 120px;
+  }
+
+  body.dark {
+  --bg: #111827;
+  --card: #1f2937;
+  --text: #f3f4f6;
+  --muted: #9ca3af;
+  --brand: #3b82f6;
+  --brand-dark: #2563eb;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body.dark .panel,
+body.dark .tile,
+body.dark .settings-panel {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+}
+
+body.dark .tile .s,
+body.dark .muted {
+  color: var(--muted);
+}
+
+body.dark .assistant-bar {
+  background: #374151;
+}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"Pretendard","Noto Sans KR",system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,"Malgun Gothic",sans-serif;
+  }
+
+  /* ===== Sidebar ===== */
+  .sidebar{
+    position:fixed; inset:0 auto 0 0; width:var(--sbw); height:100vh;
+    background:linear-gradient(180deg,var(--brand),var(--brand-dark));
+
+    color:#fff; display:flex; flex-direction:column; padding:18px 14px;
+    transition:transform .25s ease; z-index:50;
+  }
+  body.sidebar-closed .sidebar{ transform:translateX(-100%); }
+
+  .sb-top{display:flex; align-items:center; gap:10px; padding:8px 10px 14px 8px; border-bottom:1px solid rgba(255,255,255,.18); margin-bottom:12px;}
+  .logo{display:flex; align-items:center; gap:10px; font-weight:700; font-size:18px;}
+  .logo img{width:28px; height:28px; border-radius:50%; background:#fff}
+  .sb-links{display:flex; flex-direction:column; gap:6px; padding:10px 0}
+  .sb-item{
+    display:flex; align-items:center; gap:10px; padding:12px; border-radius:10px;
+    color:#eaf2ff; text-decoration:none; cursor:pointer; transition:background .18s ease;
+  }
+  .sb-item .icon{width:22px; height:22px; display:grid; place-items:center; background:rgba(255,255,255,.18); border-radius:8px; font-size:13px}
+  .sb-item:hover{background:rgba(255,255,255,.14)}
+  .sb-item.active{background:#fff; color:var(--brand)}
+  .sb-bottom{margin-top:auto; display:flex; align-items:center; gap:10px; padding:10px 12px; opacity:.9}
+  .sb-bottom img{width:44px; height:44px; border-radius:50%; background:#fff}
+  .sb-bottom .role{font-size:12px; opacity:.9}
+
+  .log-card {
+  padding: 12px;
+  border-radius: 8px;
+  background:#f0f2f5;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+.log-card:hover { background:#e3e5e8; }
+
+.bubble {
+  padding: 10px 14px;
+  margin: 8px 0;
+  border-radius: 10px;
+  max-width: 80%;
+}
+.bubble.USER { background:#d2e3ff; text-align:left; }
+.bubble.BOT { background:#eee; text-align:left; margin-left:auto; }
+
+
+  /* ===== Main ===== */
+  .main{ min-height:100vh; display:flex; flex-direction:column; margin-left:var(--sbw); transition:margin-left .25s ease; }
+  body.sidebar-closed .main{ margin-left:0; }
+
+  .topbar{
+    height:64px; background:#fff; box-shadow:var(--shadow);
+    padding:0 16px; display:flex; align-items:center; gap:8px; justify-content:space-between;
+    position: sticky; top:0; z-index:60;
+  }
+  .auth-btn{ padding:6px 12px; border:none; border-radius:8px; cursor:pointer; background:#1565d8; color:#fff; font-weight:600; transition:background .2s ease;}
+  .auth-btn:hover{ background:#0f4aa4; }
+  .left-group{display:flex; align-items:center; gap:8px;}
+  .sb-toggle{
+    border:none; background:transparent; width:40px; height:40px; border-radius:10px;
+    font-size:18px; cursor:pointer; display:grid; place-items:center; color:#1f2a37;
+  }
+  .sb-toggle:hover{background:#eef3ff}
+  .topbar .title{font-weight:700; font-size:18px}
+  .right{display:flex; align-items:center; gap:12px; color:var(--muted)}
+
+  .content{flex:1; padding:50px; position:relative;}
+  
+  .board{height:100%; display:grid; place-items:center;}
+  .panel{
+    width:min(1200px, 92%); margin:40px auto 200px;
+    background:#f7faff; border-radius:24px;
+    box-shadow:inset 0 10px 18px rgba(0,0,0,.03), 0 18px 40px rgba(23,57,132,.08);
+    padding:38px 36px;
+  }
+/* ✨ 카드 안내판 효과 */
+/* ✨ 카드 전체를 덮는 팝업형 스타일 */
+/* 패널을 오버레이 기준점으로 */
+/* 패널/오버레이 안의 트위모지 IMG는 항상 작게 고정 */
+.panel img.emoji,
+.tile-overlay img.emoji,
+.overlay-inner img.emoji {
+  width: 24px !important;
+  height: 24px !important;
+  display: inline-block !important;
+  vertical-align: -0.2em;
+}
+
+.tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:18px;}
+
+/* 기본 카드 */
+.tile{
+    background:#f9fbff; border-radius:18px; padding:50px; box-shadow:0 3px 0 #e3ecff inset, var(--shadow);
+    display:flex; gap:14px; align-items:center; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease;
+    text-decoration:none; color:inherit;
+  }
+
+/* ✅ 아이콘 기본 설정 (크기 고정 + 겹침 방지) */
+.tile .ic{width:56px; height:56px; border-radius:14px; display:grid; place-items:center; background:#e9f1ff; font-size:22px;}
+.tile:hover{transform:translateY(-2px); box-shadow:0 10px 28px rgba(0,0,0,.08)}
+.tile .txt .k{font-weight:750}
+.tile .txt .s{font-size:13px; color:var(--muted); margin-top:2px}
+
+.tile .ic img,
+.tile .ic svg,
+.tile .ic span,
+.tile .ic::before {
+  width: 48px !important;
+  height: 48px !important;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* ✅ 오버레이 (처음엔 숨김) */
+.tile-overlay {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  border-radius: 24px;
+  opacity: 0;
+  transform: scale(0.97);
+  transition: all 0.4s ease;
+  pointer-events: none;
+}
+
+/* 내부 텍스트 */
+.overlay-inner {
+  padding: 40px;
+}
+
+.overlay-inner h3 {
+  font-size: 22px;
+  margin-bottom: 20px;
+}
+
+.overlay-inner ul {
+  font-size: 16px;
+  line-height: 1.7;
+  margin-bottom: 25px;
+}
+
+.open-btn {
+  background: var(--brand, #1565d8);
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.tile .ic img,
+.tile .ic svg,
+.tile .ic span,
+.tile .ic twemoji,
+.tile .ic * {
+  max-width: 48px !important;
+  max-height: 48px !important;
+  width: 48px !important;
+  height: 48px !important;
+  flex-shrink: 0 !important;
+  object-fit: contain !important;
+  transform: none !important; /* 부모 transform 무시 */
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+/* 클릭 시 content 중앙에 맞춰 확대 */
+.tile.active {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%) scale(1);
+  width: min(1100px, 90%);
+  height: 600px;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.18);
+  z-index: 200;
+  transition: all 0.4s ease;
+  overflow: hidden;
+}
+
+/* 아이콘 / 텍스트 숨기기 */
+.tile.active .txt,
+.tile.active .ic {
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.9);
+  transition: all 0.2s ease;
+}
+
+/* 내부 흰색 패널 */
+.tile.active .tile-overlay {
+  opacity: 1;
+  pointer-events: auto;
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  border-radius: 24px;
+  transition: all 0.4s ease;
+  box-shadow: none;
+}
+
+/* 내용 자연스럽게 등장 */
+.tile.active .overlay-inner {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s;
+}
+
+.tile .overlay-inner {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+  /* ===== Assistant ===== */
+  .assistant-wrap{
+    position: fixed; bottom: 100px;
+    left: calc(var(--sbw) + (100vw - var(--sbw)) / 2 - var(--assist-shift));
+    transform: translateX(-50%); display:flex; align-items:flex-end; gap:0; z-index:40;
+    pointer-events:auto;
+  }
+  body.sidebar-closed .assistant-wrap{ left: calc(50% - var(--assist-shift)); transform: translateX(-50%); }
+  .yang-stand{ width:400px; height:400px; object-fit:contain; filter:drop-shadow(0 12px 18px rgba(0,0,0,.22)); pointer-events:none; position:relative; top:100px; }
+  .assistant-bar{ position:relative; height:64px; display:grid; grid-template-columns:120px 1fr 100px; align-items:center; gap:12px; background:#3c4250; color:#fff; border-radius:28px; padding:10px 12px; box-shadow:0 14px 30px rgba(0,0,0,.24); margin-left:-100px; width:min(860px, calc((100vw - var(--sbw)) - 300px - 70px)); transition:width .25s ease, margin-left .2s ease; pointer-events:auto; }
+  .assistant-bar::after{ content:""; position:absolute; left:-10px; bottom:30px; width:18px; height:18px; background:#3c4250; transform:rotate(45deg); border-radius:3px; box-shadow:0 6px 12px rgba(0,0,0,.18); }
+  body.sidebar-closed .assistant-bar{ width:min(960px, calc(100vw - 300px - 70px)); }
+  .chip-icon{ width:40px; height:40px; border:none; border-radius:10px; background:rgba(255,255,255,.12); color:#fff; cursor:pointer; margin-right:6px; }
+  .bar-left{display:flex; align-items:center}
+  .bar-center input{ width:100%; height:44px; border:none; outline:none; background:rgba(255,255,255,.12); color:#fff; border-radius:12px; padding:0 12px; font-size:14px; }
+  .mic, .send{ width:44px; height:44px; border:none; border-radius:12px; cursor:pointer; }
+  .mic{ background:rgba(255,255,255,.12); color:#fff; margin-right:6px; }
+  .send{ background:#00a2ff; color:#fff; font-weight:800; }
+
+  /* === 💬 채팅 말풍선 UI === */
+/* 💬 채팅 박스 - 사이드바 구조 기준 완벽 정렬 */
+.chat-box {
+  position: fixed;
+  bottom: 155px; /* 🔥 입력창 위로 정확히 띄우기 */
+  
+  /* 사이드바 있을 때 */
+  left: calc(var(--sbw) + (100vw - var(--sbw)) / 2 - var(--assist-shift));
+  transform: translateX(-32%);
+  
+  width: min(840px, calc(100vw - var(--sbw) - 300px));
+  max-height: 650px;
+  overflow-y: auto; 
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0);
+  z-index: 40; /* ✅ assistant-bar보다 위 */
+  
+  display: flex;  
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+/* 사이드바 닫힘 시 중앙정렬 유지 */
+body.sidebar-closed .chat-box {
+  left: 52%;
+  transform: translateX(-50%);
+  width: min(900px, calc(100vw - 300px));
+}
+.msg.user {
+  background: #1565d8;
+  color: #fff;
+  border-radius: 18px 18px 2px 18px;
+  padding: 10px 16px;
+  margin: 8px 0 8px auto;
+  width: fit-content;
+  max-width: 75%;
+}
+.msg.bot {
+  background: #f1f5ff;
+  color: #1f2a37;
+  border-radius: 18px 18px 18px 2px;
+  padding: 10px 16px;
+  margin: 8px auto 8px 0;
+  width: fit-content;
+  max-width: 75%;
+}
+
+
+  /* ====== 태블릿 규칙 ====== */
+  @media (max-width:1100px){
+    .tiles{grid-template-columns:repeat(2,1fr)}
+    .assistant-wrap{ bottom:110px; }
+    .assistant-bar{ grid-template-columns:100px 1fr 88px; }
+  }
+
+  /* ====== 모바일 규칙(핵심) ====== */
+  @media (max-width:768px){
+    :root{ --sbw: 78vw; --assist-shift:0px; }
+
+    /* 사이드바: 기본 접힘(오버레이 모드) */
+    .sidebar{
+      transform: translateX(-100%);
+      z-index:100;
+    }
+    body.sb-open .sidebar{ transform: translateX(0); }
+    /* 배경 딤 */
+    .sb-dim{
+      position: fixed; inset:0; background:rgba(0,0,0,.35);
+      z-index:90; display:none;
+    }
+    body.sb-open .sb-dim{ display:block; }
+
+    /* 메인 좌여백 제거 */
+    .main{ margin-left:0 !important; }
+    .content{ padding:16px !important; }
+
+    /* 패널/타일 축소 + 1열 */
+    .panel{
+      width:100% !important; margin:12px auto 120px !important;
+      padding:16px !important; border-radius:14px !important;
+      box-shadow:0 6px 16px rgba(0,0,0,.06) !important; background:#fff !important;
+    }
+    .tiles{ grid-template-columns:1fr !important; gap:12px !important; }
+    .tile{ padding:16px !important; border-radius:12px !important; }
+
+    /* 캐릭터 숨김 + 채팅바 중앙 */
+    .yang-stand{ display:none !important; }
+    .assistant-wrap{
+      left:50% !important; bottom:20px !important; transform:translateX(-50%) !important;
+      z-index:40;
+    }
+    .assistant-bar{
+      margin-left:0 !important;
+      width:min(92vw, 680px) !important;
+      grid-template-columns:90px 1fr 88px !important;
+    }
+    /* 사이드바 열릴 때 채팅바 아래로 */
+    body.sb-open .assistant-wrap{ z-index:10; }
+  }
+
+  .sb-item .icon img.emoji{ width:16px; height:16px; display:block; }
+  .tile .ic img.emoji{ width:28px; height:28px; display:block; }
+  .chip-icon img.emoji, .mic img.emoji{ width:20px; height:20px; display:block; margin:0 auto; }
+  
+  /* === 채팅 모드 전환 === */
+body.chatting .panel,
+body.chatting .tiles {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+/* ⚙️ 설정 패널 (모달 팝업 스타일) */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45); /* 어두운 배경 효과 */
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 300;
+  animation: fadeIn 0.3s ease;
+}
+
+.settings-overlay.active {
+  display: flex;
+}
+
+/* 🎬 설정창 페이드아웃 애니메이션 추가 */
+.settings-overlay.fade-out {
+  animation: fadeOut 0.3s ease forwards;
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(10px); } /* 살짝 아래로 사라지게 */
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.settings-panel {
+  background: #fff;
+  padding: 40px 50px;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+  width: min(600px, 90%);
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: popUp 0.3s ease;
+}
+
+@keyframes popUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.settings-panel h2 {
+  font-size: 24px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-panel .list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 20px;
+}
+
+.settings-panel .list li {
+  background: #f9fbff;
+  padding: 10px 16px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.05);
+}
+
+.settings-panel .btn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  background: var(--brand, #1565d8);
+  color: #fff;
+  font-weight: 600;
+}
+
+.settings-panel .btn.danger {
+  background: #e11d48;
+}
+
+/* 🌙 다크모드 스위치 토글 */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0;
+  right: 0; bottom: 0;
+  background-color: #ccc;
+  border-radius: 34px;
+  transition: .3s;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px; width: 18px;
+  left: 3px; bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: .3s;
+}
+input:checked + .slider {
+  background-color: var(--brand, #1565d8);
+}
+input:checked + .slider:before {
+  transform: translateX(22px);
+}
+body, .panel, .tile, .settings-panel, .assistant-bar {
+  transition: background-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease;
+}
+/* 🌙 다크모드용 텍스트/카드 색상 보정 */
+body.dark .tile,
+body.dark .panel,
+body.dark .settings-panel {
+  background: #1f2937;  /* 짙은 회색 배경 */
+  color: #f3f4f6;       /* 밝은 텍스트 */
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+
+body.dark .tile .txt .k {
+  color: #f9fafb;  /* 타이틀 텍스트 */
+}
+
+body.dark .tile .txt .s {
+  color: #9ca3af;  /* 서브 텍스트 */
+}
+
+body.dark .panel h3,
+body.dark .overlay-inner h3 {
+  color: #f3f4f6;
+}
+
+body.dark .overlay-inner ul li {
+  color: #e5e7eb;
+}
+
+/* 버튼 및 입력창 대비 조정 */
+body.dark .open-btn {
+  background: var(--brand);
+  color: #fff;
+}
+
+body.dark .assistant-bar input {
+  background: rgba(255,255,255,0.1);
+  color: #f3f4f6;
+}
+
+body.dark .assistant-bar input::placeholder {
+  color: #9ca3af;
+}
+
+/* 설정 모달 안 리스트/버튼 색상 */
+body.dark .settings-panel .list li {
+  background: #374151;
+  color: #f3f4f6;
+}
+
+body.dark .settings-panel .btn.danger {
+  background: #dc2626;
+  color: #fff;
+}
+
+body.dark .settings-panel .btn {
+  background: #2563eb;
+  color: #fff;
+}
+
+/* 🤖 봇(양동이) 메시지 */
+body.dark .msg.bot {
+  background: #273449; /* 기존보다 약간 밝게 */
+  color: #f9fafb;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+}
+
+/* 🌙 다크모드 — 채팅 말풍선 시각 개선 */
+body.dark .msg.user {
+  background: linear-gradient(135deg, #3b82f6, #2563eb); /* 더 선명한 블루 */
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+}
+
+body.dark .yang-stand {
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.6));
+}
+body, .panel, .tile, .settings-panel, .assistant-bar, .chat-box {
+  transition: background-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease;
+}
+/* 🌙 다크모드 상단바 / 버튼 / 사이드바 보정 */
+body.dark .topbar {
+  background: #1f2937;  /* 어두운 회색 배경 */
+  color: #f3f4f6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+body.dark .topbar .title {
+  color: #f9fafb;
+}
+
+body.dark .topbar .muted {
+  color: #9ca3af;
+}
+
+/* 로그인/로그아웃 버튼 색상 반전 */
+body.dark .auth-btn {
+  background: #2563eb;
+  color: #fff;
+}
+body.dark .auth-btn:hover {
+  background: #1d4ed8;
+}
+
+/* 🌙 사이드바 색상도 다크모드에 맞게 */
+body.dark .sidebar {
+  background: linear-gradient(180deg, #1e3a8a, #0f172a);
+  color: #f9fafb;
+}
+
+body.dark .sb-item {
+  color: #d1d5db;
+}
+body.dark .sb-item.active {
+  background: #2563eb;
+  color: #fff;
+}
+body.dark .sb-item:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+body.dark .sb-bottom .role {
+  color: #9ca3af;
+}
+
+/* 💡 로고와 아이콘 배경도 조금 어둡게 */
+body.dark .logo img,
+body.dark .sb-bottom img {
+  background: #f3f4f6;
+}
+/* 🌙 다크모드 — 사이드바 토글 버튼 색상 보정 */
+body.dark .sb-toggle {
+  color: #f3f4f6;              /* 밝은 흰색으로 변경 */
+  background: rgba(255,255,255,0.1); /* 살짝 배경 넣어서 시인성 향상 */
+}
+body.dark .sb-toggle:hover {
+  background: rgba(255,255,255,0.2);
+}
+/* 🌙 다크모드 — 보조 아이콘 버튼 색상 */
+body.dark .chip-icon,
+body.dark .mic {
+  background: rgba(255,255,255,0.12);
+  color: #f3f4f6;
+}
+
+body.dark .chip-icon:hover,
+body.dark .mic:hover {
+  background: rgba(255,255,255,0.22);
+}
+
+body.dark .send {
+  background: #2563eb;
+  color: #fff;
+}
+/* 🌙 다크모드 - 채팅 영역 스타일 */
+body.dark .chat-box {
+  background: #0f172a;  /* 전체 채팅 배경 */
+  color: #f3f4f6;
+}
+
+/* 🗨️ 사용자 메시지 */
+/* 🌙 다크모드 — 채팅 말풍선 시각 개선 */
+body.dark .msg.user {
+  background: linear-gradient(135deg, #3b82f6, #2563eb); /* 더 선명한 블루 */
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+}
+
+/* 🤖 봇(양동이) 메시지 */
+/* 🌙 다크모드 — 봇 메시지 색상 완전 통일 */
+body.dark .msg.bot {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  color: #fff !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.45) !important;
+}
+
+/* ⚠️ 에러/경고 메시지 */
+body.dark .msg.error {
+  background: #b91c1c;
+  color: #fff;
+}
+
+/* 💬 입력창 */
+body.dark .assistant-bar {
+  background: #1e293b;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.4);
+}
+
+/* 입력창 내부 input */
+body.dark .assistant-bar input {
+  background: rgba(255,255,255,0.08);
+  color: #f3f4f6;
+  border: none;
+}
+body.dark .assistant-bar input::placeholder {
+  color: #9ca3af;
+}
+
+/* 전송 버튼 */
+body.dark .assistant-bar button {
+  background: #2563eb;
+  color: #fff;
+}
+body.dark .assistant-bar button:hover {
+  background: #1d4ed8;
+}
+
+/* ⚙️ 하단 아이콘 버튼들 (예: 설정, 음성 등) */
+body.dark .assistant-bar .icon-btn {
+  background: rgba(255,255,255,0.1);
+  color: #f3f4f6;
+}
+body.dark .assistant-bar .icon-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+/* 채팅 줄바꿈/개행 처리 + 한국어 단어 줄바꿈 */
+#chatBox { display:flex; flex-direction:column; gap:10px; }
+#chatBox .msg { line-height:1.55; max-width:72%; }
+#chatBox .msg .text {
+  white-space: pre-line;     /* \n 을 실제 줄바꿈으로 */
+  word-break: keep-all;      /* 한국어 단어 단위 유지 */
+  overflow-wrap: anywhere;   /* 길~게 붙는 URL/영문도 줄바꿈 */
+}
+
+/* 좌우 정렬(원하면) */
+#chatBox .msg.user { align-self:flex-end; background:#1565d8; padding:10px 12px; border-radius:16px; }
+#chatBox .msg.bot  { align-self:flex-start; background:#dae3f7;    padding:10px 12px; border-radius:16px; }
+
+/* ✨ 한글 자모 타이핑 애니메이션 효과 */
+.msg.bot.typing::after {
+  content: "▍";  /* 깜빡이는 커서 모양 */
+  display: inline-block;
+  animation: blink 0.9s infinite;
+  margin-left: 4px;
+  opacity: 0.6;
+}
+
+@keyframes blink {
+  0%, 50%, 100% { opacity: 0.6; }
+  25%, 75% { opacity: 0; }
+}
+
+/* 타이핑 중일 때 말풍선 강조 (선택사항) */
+.msg.bot.typing {
+  background: #e8efff;
+  box-shadow: 0 0 8px rgba(21, 101, 216, 0.15);
+}
+
+/* 타이핑 중에도 동일 색상 유지 */
+/* 🌙 다크모드 — 봇 타이핑 중에도 동일 색상 유지 */
+body.dark .msg.bot.typing {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.45) !important;
+}
+
+</style>
+</head>
+<body class="sidebar-closed">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-top">
+      <div class="logo"><img src="image/yangdongi.png" alt="양동이"><span>양동이</span></div>
+    </div>
+    <nav class="sb-links">
+    <!-- 1️⃣ 새 채팅 버튼 -->
+    <a class="sb-item active" id="newChatBtn" href="#">
+      <span class="icon">💬</span>
+      <span>새 채팅</span>
+    </a>
+      <a class="sb-item" href="/" onclick="showMain()"><span class="icon">🏠</span><span>메인페이지</span></a>
+      <a class="sb-item" href="#" onclick="openRecentLogs()"><span class="icon">📅</span><span>지난 7일</span></a>
+      <a class="sb-item" href="https://www.dongyang.ac.kr/dmu/index.do"><span class="icon">📚</span><span>학교 홈페이지</span></a>
+      <a class="sb-item" href="#" onclick="showPersonalInfo()"><span class="icon">👤</span><span>개인 정보</span></a>
+      <a class="sb-item" href="https://www.dongyang.ac.kr/dmu/4749/subview.do"><span class="icon">🎓</span><span>학사 일정</span></a>
+      <a class="sb-item" id="settingsBtn" href="#"><span class="icon">⚙️</span><span>설정</span>
+</a>
+
+    </nav>
+
+    <!-- #️⃣ 사용자 정보가 채워질 영역 -->
+    <div class="sb-bottom" id="userBox">
+      <img src="image/user.png" alt="사용자">
+      <div class="info">
+        <div><strong id="userName">로그인이 필요합니다</strong></div>
+        <div class="role" id="userMeta">-</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <header class="topbar">
+      <div class="left-group">
+        <button class="sb-toggle" id="toggleBtn">☰</button>
+        <div class="title">양동이 챗봇 1.0 </div>
+      </div>
+
+      <!-- #️⃣ 로그인 상태에 따라 숨길 버튼 -->
+      <div class="right">
+        <span class="muted" id="todayText"></span>
+        <button id="authBtn" class="auth-btn"></button>
+        <button id="logoutBtn" class="auth-btn" style="display:none">로그아웃</button>
+      </div>
+    </header>
+
+<section class="content" id="dashboardView">
+  <div class="board">
+    <div class="panel">
+      <div class="tiles">
+
+<!-- ✅ 수업 시간표 카드 -->
+<!-- ✅ 수업 시간표 -->
+<div class="tile">
+  <div class="ic">🗓️</div>
+  <div class="txt">
+    <div class="k">수업 시간표</div>
+    <div class="s">이번 주 수업 및 강의실</div>
+  </div>
+
+  <div class="tile-overlay">
+    <div class="overlay-inner">
+      <h3>📅 이번 주 수업 시간표</h3>
+      <ul>
+        <li>월요일 - 알고리즘 - 09:00 ~ 10:30 (C201)</li>
+        <li>화요일 - 데이터베이스 - 11:00 ~ 12:30 (A304)</li>
+        <li>수요일 - 인공지능 기초 - 13:00 ~ 14:30 (B105)</li>
+        <li>목요일 - 웹프로그래밍 - 15:00 ~ 16:30 (D202)</li>
+        <li>금요일 - 프로젝트 실습 - 10:00 ~ 12:00 (Lab 2)</li>
+      </ul>
+      <button class="open-btn" onclick="window.location.href='feature.html?feature=schedule'"> 자세히 보기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ 자격증 안내 -->
+<div class="tile">
+  <div class="ic">🧾</div>
+  <div class="txt">
+    <div class="k">자격증 안내</div>
+    <div class="s">추천 자격증 / 시험일정</div>
+  </div>
+
+  <div class="tile-overlay">
+    <div class="overlay-inner">
+      <h3>🧾 추천 자격증 & 시험 일정</h3>
+      <ul>
+        <li>정보처리기사 - 2025.10.20 (접수 마감: 10.05)</li>
+        <li>SQLD - 2025.11.12 (접수 마감: 10.30)</li>
+        <li>리눅스마스터 2급 - 2025.12.03 (접수 마감: 11.20)</li>
+      </ul>
+      <button class="open-btn" onclick="window.location.href='feature.html?feature=license'"> 자세히 보기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ 학점 조회 -->
+<div class="tile">
+  <div class="ic">📊</div>
+  <div class="txt">
+    <div class="k">학점 조회</div>
+    <div class="s">누적 / 학기별 성적</div>
+  </div>
+
+  <div class="tile-overlay">
+    <div class="overlay-inner">
+      <h3>📊 학점 요약</h3>
+      <ul>
+        <li>누적 평균 학점: <strong>3.85 / 4.5</strong></li>
+        <li>전공 평균 학점: 3.92</li>
+        <li>교양 평균 학점: 3.78</li>
+      </ul>
+      <button class="open-btn" onclick="window.location.href='feature.html?feature=grade'"> 자세히 보기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ eClass -->
+<div class="tile">
+  <div class="ic">🖥️</div>
+  <div class="txt">
+    <div class="k">eClass</div>
+    <div class="s">과제</div>
+  </div>
+
+  <div class="tile-overlay">
+    <div class="overlay-inner">
+      <h3>🖥️ 과제 </h3>
+      <ul>
+        <li>[과제] AI 프로젝트 보고서 – 마감: 2025.10.07</li>
+        <li>[과제] 데이터 분석 중간 보고서 – 마감: 2025.10.10</li>
+        <li>[공지] 기말 프로젝트 발표 – 2025.12.01 예정</li>
+      </ul>
+      <button class="open-btn" onclick="window.location.href='feature.html?feature=eclass'"> 자세히 보기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ 공지사항 -->
+<div class="tile">
+  <div class="ic">📢</div>
+  <div class="txt">
+    <div class="k">공지사항</div>
+    <div class="s">학교 공지사항 / 학과 공지사항</div>
+  </div>
+
+  <div class="tile-overlay">
+    <div class="overlay-inner">
+      <h3>📢 공지사항</h3>
+      <ul>
+        <li>학교 공지사항</li>
+        <li>학과 공지사항</li>
+        <li>----------</li>
+      </ul>
+      <button class="open-btn" onclick="window.location.href='feature.html?feature=library'"> 자세히 보기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ 졸업 학점 이수 -->
+<div class="tile">
+  <div class="ic">🎓</div>
+  <div class="txt">
+    <div class="k">졸업 학점 이수</div>
+    <div class="s">전공 / 교양 이수체크</div>
+  </div>
+
+  <div class="tile-overlay">
+    <div class="overlay-inner">
+      <h3>🎓 졸업 요건 진행 상황</h3>
+      <ul>
+        <li>전공 이수: 78 / 80 학점</li>
+        <li>교양 이수: 28 / 30 학점</li>
+        <li>총 이수: 125 / 130 학점</li>
+      </ul>
+      <button class="open-btn" onclick="window.location.href='feature.html?feature=graduate'"> 자세히 보기</button>
+    </div>
+  </div>
+</div>
+
+</section>
+<!-- 💬 채팅 말풍선 박스 -->
+<div class="chat-box" id="chatBox"></div>
+
+      <!-- Assistant -->
+      <div class="assistant-wrap">
+        <img class="yang-stand" src="image/yangdongi.png" alt="양동이">
+        <div class="assistant-bar">
+          <div class="bar-left">
+            <button class="chip-icon">🌐</button>
+            <button class="chip-icon">📘</button>
+            <button class="chip-icon">⚙️</button>
+          </div>
+          <div class="bar-center"><input id="ask" type="text" placeholder="안녕! 난 양동이야. 어떤 점이 궁금해?" /></div>
+          <div class="bar-right" style="display:flex;align-items:center;gap:6px;">
+            <button class="mic">🎙</button>
+            <button class="send" >➜</button>
+          </div>
+        </div>
+      </div>
+    
+      <!-- ⚙️ 설정 패널 (처음엔 숨김 상태) -->
+      <div class="settings-overlay" id="settingsOverlay">
+  <div class="settings-panel">
+    <h2> 설정</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+  <span style="font-weight:600;"> 다크 모드</span>
+  <label class="switch">
+    <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode(this.checked)">
+    <span class="slider"></span>
+  </label>
+</div>
+    <hr style="margin:20px 0;border:none;border-top:1px solid #e5e7eb;">
+
+    <h3> 즐겨찾기 목록</h3>
+    <ul id="favList" class="list"></ul>
+
+    <h3> 채팅 기록</h3>
+    <ul id="chatList" class="list"></ul>
+
+    <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+      <button class="btn danger" onclick="clearChats()"> 모든 기록 삭제</button>
+      <button class="btn" onclick="closeSettingsPanel()">닫기</button>
+    </div>
+  </div>
+</div>
+
+    <!-- ✅ 지난 7일 로그 목록 화면 -->
+<section id="recentLogsView" style="display:none; padding:20px;">
+  <h2>지난 7일 대화 기록</h2>
+  <div id="logsList"></div>
+</section>
+<!-- ✅ 특정 날짜 상세 대화 화면 -->
+<section id="logsDetailView" style="display:none; padding:20px;">
+  <button onclick="showRecentLogs()">← 뒤로가기</button>
+  <h3 id="logsTitle"></h3>
+  <div id="logsDetail"></div>
+</section>
+ 
+<!-- ✅ 개인 정보 화면 -->
+<section id="personal-section" class="page" style="display:none; padding:20px;">
+  <h2>개인 정보</h2>
+  <div class="card" style="padding:15px; border-radius:10px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.05); max-width:400px;">
+    <p><strong>이름:</strong> <span id="p-name"></span></p>
+    <p><strong>학번:</strong> <span id="p-student"></span></p>
+    <p><strong>학과:</strong> <span id="p-dept"></span></p>
+    <p><strong>역할:</strong> <span id="p-role"></span></p>
+    <p><strong>이메일:</strong> <span id="p-email"></span></p>
+
+    <button onclick="showDashboard()" style="margin-top:15px;">← 돌아가기</button>
+  </div>
+</section>
+
+
+  </main>
+
+  <!-- 모바일 오버레이 딤 -->
+  <div class="sb-dim"></div>
+<script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js" crossorigin="anonymous"></script>
+<script>
+// ========================= 기본 상수 =========================
+const API_BASE     = "http://127.0.0.1:8001"; // Flask (로그 적재용 프록시)
+const FASTAPI_BASE = "http://127.0.0.1:9000"; // FastAPI (TTS/STT)
+
+// ========================= 유틸 =========================
+function scrollChatToBottom() {
+  const box = document.getElementById("chatBox");
+  if (box) box.scrollTop = box.scrollHeight;
+}
+function escapeHTML(s=""){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// 🔒 전송 중복 방지 가드 + 래퍼
+let isSending = false;
+async function safeSend() {
+  if (isSending) return;
+  isSending = true;
+  try { await send(); } finally { isSending = false; }
+}
+
+// ========================= 메시지 렌더 =========================
+// 사용자 말풍선
+function appendUserMessage(text) {
+  const box = document.getElementById("chatBox");
+  const wrap = document.createElement("div");
+  wrap.className = "msg user";
+
+  const textEl = document.createElement("div");
+  textEl.className = "text";
+  textEl.textContent = `🙋 ${text}`;
+
+  wrap.appendChild(textEl);
+  box.appendChild(wrap);
+  scrollChatToBottom();
+}
+
+// 봇 말풍선
+function appendBotMessage(text) {
+  const box = document.getElementById("chatBox");
+  const msg = document.createElement("div");
+  msg.className = "msg bot";
+
+  msg.innerHTML = `
+    <div class="text">${escapeHTML(text)}</div>
+    <button class="tts-btn" style="margin-left:8px;border:none;background:transparent;cursor:pointer" title="읽어주기">🔊</button>
+  `;
+  // TTS 버튼 핸들러
+  const btn = msg.querySelector(".tts-btn");
+  btn.addEventListener("click", () => playTTS(text));
+
+  box.appendChild(msg);
+  scrollChatToBottom();
+}
+/* ======= 한글 조립 유틸 ======= */
+const Hangul = {
+  disassemble: function(str) {
+    const CHO = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+    const JUNG = ["ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ"];
+    const JONG = ["","ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ","ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+    let result = [];
+    for (let ch of str) {
+      const code = ch.charCodeAt(0) - 0xac00;
+      if (code >= 0 && code <= 11171) {
+        const cho = Math.floor(code / 588);
+        const jung = Math.floor((code - cho * 588) / 28);
+        const jong = code % 28;
+        result.push(CHO[cho], JUNG[jung]);
+        if (JONG[jong] !== "") result.push(JONG[jong]);
+      } else {
+        result.push(ch);
+      }
+    }
+    return result;
+  },
+  assemble: function(arr) {
+    const CHO = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+    const JUNG = ["ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ"];
+    const JONG = ["","ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ","ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+
+    let result = "";
+    let cho, jung, jong;
+    function flush() {
+      if (cho !== undefined && jung !== undefined) {
+        const choIdx = CHO.indexOf(cho);
+        const jungIdx = JUNG.indexOf(jung);
+        const jongIdx = JONG.indexOf(jong || "");
+        result += String.fromCharCode(0xac00 + choIdx * 588 + jungIdx * 28 + jongIdx);
+      } else if (cho) result += cho;
+      else if (jung) result += jung;
+      cho = jung = jong = undefined;
+    }
+
+    for (let c of arr) {
+      if (CHO.includes(c)) {
+        if (cho && jung) flush();
+        cho = c;
+      } else if (JUNG.includes(c)) {
+        if (!cho) cho = "ㅇ"; // 초성 없을 때 자동 ㅇ
+        jung = c;
+      } else if (JONG.includes(c)) {
+        if (cho && jung && !jong) jong = c;
+        else { flush(); cho = c; }
+      } else {
+        flush(); result += c;
+      }
+    }
+    flush();
+    return result;
+  }
+};
+async function typeHangul(target, text, speed = 70) {
+  const chars = Hangul.disassemble(text);
+  let partial = [];
+  for (let i = 0; i < chars.length; i++) {
+    partial.push(chars[i]);
+    target.innerText = Hangul.assemble(partial);
+    await new Promise(r => setTimeout(r, speed));
+  }
+  target.innerText = text; // 완성형으로 마무리
+}
+
+/* ======= 봇 메시지 생성 ======= */
+async function appendBotMessage(text) {
+  const chatBox = document.getElementById("chatBox");
+  const bubble = document.createElement("div");
+  bubble.className = "msg bot typing";
+  chatBox.appendChild(bubble);
+  chatBox.scrollTop = chatBox.scrollHeight;
+  
+  await typeHangul(bubble, text);
+  bubble.classList.remove("typing");
+}
+/* ======= 사용자 입력 처리 ======= */
+document.querySelector(".send").addEventListener("click", () => {
+  const input = document.getElementById("ask");
+  const userText = input.value.trim();
+  if (userText === "") return;
+
+  const chatBox = document.getElementById("chatBox");
+  const userBubble = document.createElement("div");
+  userBubble.className = "msg user";
+  userBubble.textContent = userText;
+  chatBox.appendChild(userBubble);
+
+  input.value = "";
+  chatBox.scrollTop = chatBox.scrollHeight;
+
+  // 테스트용 응답
+  setTimeout(() => appendBotMessage("안녕하세요! 저는 양동이에요 🤖"), 600);
+});
+
+/* ======= 엔터키로 전송 ======= */
+document.getElementById("ask").addEventListener("keypress", e => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    document.querySelector(".send").click();
+  }
+});
+// ========================= TTS =========================
+async function playTTS(text) {
+  try {
+    const res = await fetch(`${FASTAPI_BASE}/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text })
+    });
+    if (!res.ok) throw new Error("TTS 서버 오류");
+    const data = await res.json();
+    new Audio(`data:audio/mpeg;base64,${data.audio_b64}`).play();
+  } catch (e) {
+    appendBotMessage(`TTS 실패: ${e.message}`);
+  }
+}
+
+// ========================= STT(마이크) =========================
+let mediaRecorder, audioChunks = [];
+async function handleMicClick() {
+  // 다시 누르면 종료
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+    mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(audioChunks, { type: "audio/webm" });
+      const fd = new FormData();
+      fd.append("file", blob, "voice.webm");
+
+      const res = await fetch(`${FASTAPI_BASE}/voice-chat`, { method: "POST", body: fd });
+      const d = await res.json();
+
+      appendUserMessage(d.user_text || "🎙️(음성)");
+      appendBotMessage(d.assistant_text || "(응답 없음)");
+    };
+    mediaRecorder.start();
+    alert("🎙️ 녹음 시작! 다시 눌러 종료합니다.");
+  } catch (err) {
+    alert("마이크 권한을 허용해주세요!");
+  }
+}
+
+// ========================= 채팅 전송 (단일 send) =========================
+async function send() {
+  const input = document.getElementById("ask");
+  const text = (input.value || "").trim();
+  if (!text) return;
+
+  // 메인 카드 가리기(대화 모드 전환)
+  document.body.classList.add("chatting");
+
+  appendUserMessage(text);
+  input.value = "";
+
+  try {
+    // 🔗 Flask 프록시(/chat)로 보내서 DB 로그 적재 + FastAPI 연계
+    const chatRes = await fetch(`${API_BASE}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: text }),
+      credentials: "include" // 세션 쿠키 포함(로그 적재시 uid 식별)
+    });
+    const data = await chatRes.json();
+    const answer = data.answer || (data.msg ? `오류: ${data.msg}` : "(응답 없음)");
+    appendBotMessage(answer);
+  } catch (e) {
+    appendBotMessage(`⚠️ 서버 연결 실패: ${e.message}`);
+  }
+}
+
+
+// ========================= 새 채팅 =========================
+function resetChatView() {
+  const chatBox = document.getElementById("chatBox");
+  if (chatBox) chatBox.innerHTML = "";
+  const msg = document.createElement("div");
+  msg.className = "system-message";
+  msg.style.textAlign = "center";
+  msg.style.color = "#6b7280";
+  msg.style.margin = "20px 0";
+  msg.textContent = "새로운 채팅이 시작되었습니다.";
+  chatBox.appendChild(msg);
+}
+
+// ========================= 사이드바/테마/세션 =========================
+function isMobile(){ return window.innerWidth <= 768; }
+function closeAllSidebars(){ document.body.classList.remove('sb-open'); }
+
+async function logout(){
+  try {
+    await fetch("/api/logout", { method:"POST", credentials:"include" }).catch(()=>{});
+  } catch(_) {}
+  localStorage.removeItem("isLoggedIn");
+  localStorage.removeItem("isGuest");
+  sessionStorage.clear();
+  location.href = "login.html";
+}
+async function hydrateUserUI() {
+  try {
+    const res = await fetch("/api/me", { credentials: "include" });
+    const data = await res.json().catch(()=> ({}));
+    const btn = document.getElementById("authBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const nameEl = document.getElementById("userName");
+    const metaEl = document.getElementById("userMeta");
+
+    if (res.ok && data.ok && data.user) {
+      const u = data.user;
+      nameEl.textContent = u.name || "이름 없음";
+      metaEl.innerHTML = `${u.uid || "-"}<br>${u.department || "-"}`;
+      if (btn) btn.style.display = "none";
+      if (logoutBtn) { logoutBtn.style.display = "inline-flex"; logoutBtn.onclick = logout; }
+    } else {
+      if (btn) {
+        btn.textContent = "로그인";
+        btn.onclick = ()=> location.href="login.html";
+        btn.style.display = "inline-flex";
+      }
+      if (logoutBtn) logoutBtn.style.display = "none";
+    }
+  } catch (e) {
+    console.warn("세션 조회 실패", e);
+  }
+}
+function toggleDarkMode(isOn) {
+  if (isOn) {
+    document.body.classList.add("dark");
+    localStorage.setItem("theme", "dark");
+  } else {
+    document.body.classList.remove("dark");
+    localStorage.setItem("theme", "light");
+  }
+}
+function restoreTheme() {
+  const savedTheme = localStorage.getItem("theme");
+  const darkToggle = document.getElementById("darkModeToggle");
+  if (savedTheme === "dark") {
+    document.body.classList.add("dark");
+    if (darkToggle) darkToggle.checked = true;
+  }
+}
+
+// ========================= 로그(지난 7일) =========================
+function openRecentLogs() {
+  document.getElementById("recentLogsView").style.display = "block";
+  document.getElementById("logsDetailView").style.display = "none";
+  document.querySelector(".content").style.display = "none";
+  loadRecentLogs();
+}
+function showMain() {
+  document.getElementById("recentLogsView").style.display = "none";
+  document.getElementById("logsDetailView").style.display = "none";
+  document.querySelector(".content").style.display = "block";
+}
+function loadRecentLogs() {
+  fetch("/api/chat/logs/7days", { credentials:"include" })
+    .then(res => res.json())
+    .then(data => {
+      const box = document.getElementById("logsList");
+      if (!data.ok || !data.days || data.days.length === 0) {
+        box.innerHTML = "<p>최근 대화 기록이 없습니다.</p>";
+        return;
+      }
+      box.innerHTML = data.days.map(d => `
+        <div class="log-card" onclick="openLogDetail('${d.day}')">
+          <strong>${d.day}</strong> — ${d.count}개의 대화
+        </div>
+      `).join("");
+    });
+}
+function openLogDetail(date) {
+  document.getElementById("recentLogsView").style.display = "none";
+  document.getElementById("logsDetailView").style.display = "block";
+  document.getElementById("logsTitle").innerText = date;
+
+  fetch(`/api/chat/logs/detail?date=${date}`, { credentials:"include" })
+    .then(res => res.json())
+    .then(data => {
+      const box = document.getElementById("logsDetail");
+      box.innerHTML = data.logs.map(log => `
+        <div class="bubble ${log.speaker}">
+          <span>${escapeHTML(log.message)}</span>
+        </div>
+      `).join("");
+    });
+}
+function showRecentLogs() {
+  document.getElementById("logsDetailView").style.display = "none";
+  document.getElementById("recentLogsView").style.display = "block";
+}
+
+// ========================= DOMContentLoaded =========================
+document.addEventListener('DOMContentLoaded', () => {
+  // 폼 기본 submit 차단 (중복 전송 방지)
+  document.addEventListener("submit", (e) => e.preventDefault());
+
+  // Twemoji (전체 1회)
+  twemoji.parse(document.body, { folder: 'svg', ext: '.svg' });
+
+  // 날짜 출력
+  const el = document.getElementById('todayText');
+  const d = new Date(); const w = ['일','월','화','수','목','금','토'][d.getDay()];
+  if (el) el.textContent = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${w}`;
+
+  // 사이드바 토글
+  const toggleBtn = document.getElementById('toggleBtn');
+  const dim = document.querySelector('.sb-dim');
+  if (toggleBtn && !toggleBtn.dataset.bound) {
+    toggleBtn.addEventListener('click', ()=>{
+      if (isMobile()) document.body.classList.toggle('sb-open');
+      else document.body.classList.toggle('sidebar-closed');
+    });
+    toggleBtn.dataset.bound = "1";
+  }
+  if (dim && !dim.dataset.bound) {
+    dim.addEventListener('click', closeAllSidebars);
+    dim.dataset.bound = "1";
+  }
+  window.addEventListener('resize', ()=>{
+    if (isMobile()) document.body.classList.add('sidebar-closed');
+    else document.body.classList.remove('sb-open');
+  });
+
+  // 타일(패널) 오버레이
+  const tiles = document.querySelectorAll('.tile');
+  let activeTile = null;
+  tiles.forEach(tile => {
+    if (tile.dataset.bound) return;
+    tile.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (tile.classList.contains('active')) {
+        tile.classList.remove('active'); activeTile = null; return;
+      }
+      if (activeTile) activeTile.classList.remove('active');
+      tile.classList.add('active'); activeTile = tile;
+    });
+    tile.dataset.bound = "1";
+  });
+  document.addEventListener('click', (e) => {
+    if (activeTile && !activeTile.contains(e.target)) {
+      activeTile.classList.remove('active'); activeTile = null;
+    }
+  });
+
+  // 세션/테마
+  hydrateUserUI();
+  restoreTheme();
+
+  // ===== 전송 이벤트 바인딩 (IME/중복 방지) =====
+  const input = document.getElementById("ask");
+  const sendBtn = document.querySelector(".send");
+
+  function onAskKeydown(e) {
+    if (e.isComposing || e.keyCode === 229) return; // IME 조합 중의 가짜 Enter 무시
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      safeSend();
+    }
+  }
+
+  if (input && !input.dataset.bound) {
+    input.addEventListener("keydown", onAskKeydown);
+    input.dataset.bound = "1";
+  }
+  if (sendBtn && !sendBtn.dataset.bound) {
+    sendBtn.addEventListener("click", safeSend);
+    sendBtn.dataset.bound = "1";
+  }
+
+  // 마이크 버튼
+  const micBtn = document.querySelector(".mic");
+  if (micBtn && !micBtn.dataset.bound) {
+    micBtn.addEventListener("click", handleMicClick);
+    micBtn.dataset.bound = "1";
+  }
+
+  // 새 채팅 버튼
+  const newChatBtn = document.getElementById("newChatBtn");
+  if (newChatBtn && !newChatBtn.dataset.bound) {
+    newChatBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      resetChatView();
+    });
+    newChatBtn.dataset.bound = "1";
+  }
+
+  // 설정 열기 버튼
+  const settingsBtn = document.getElementById("settingsBtn");
+  if (settingsBtn && !settingsBtn.dataset.bound) {
+    settingsBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      document.getElementById("settingsOverlay").classList.add("active");
+      renderChatSettings();
+    });
+    settingsBtn.dataset.bound = "1";
+  }
+
+  // 설정 패널 닫기(배경클릭)
+  const settingsOverlay = document.getElementById("settingsOverlay");
+  if (settingsOverlay && !settingsOverlay.dataset.bound) {
+    settingsOverlay.addEventListener("click", (e) => {
+      if (e.target.id === "settingsOverlay") {
+        settingsOverlay.classList.remove("active");
+      }
+    });
+    settingsOverlay.dataset.bound = "1";
+  }
+});
+
+// ⚙️ 설정창 닫기 함수 닫기 버튼 안눌려지는거 수정 코드
+  function closeSettingsPanel() {
+    const overlay = document.getElementById("settingsOverlay");
+    if (overlay) {
+      // 1️⃣ 페이드아웃 애니메이션 클래스 추가
+      overlay.classList.add("fade-out");
+
+      // 2️⃣ 0.3초 후 완전히 닫기
+      setTimeout(() => {
+        overlay.classList.remove("active");
+        overlay.classList.remove("fade-out");
+      }, 300);
+    }
+  }
+// ========================= 설정 패널 보조 함수들 =========================
+function renderChatSettings() {
+  const chats = JSON.parse(localStorage.getItem("chatHistory") || "[]");
+  const favList = document.getElementById("favList");
+  const chatList = document.getElementById("chatList");
+  if (!favList || !chatList) return;
+
+  favList.innerHTML = chats.filter(c=>c.favorite)
+    .map(c=>`<li>${escapeHTML(c.date)} <button onclick="toggleFav('${c.id}')">★ 해제</button></li>`)
+    .join("") || "<li>즐겨찾기 없음</li>";
+
+  chatList.innerHTML = chats.map(c=>`
+    <li>
+      ${escapeHTML(c.date)}
+      <span>
+        <button onclick="toggleFav('${c.id}')">${c.favorite ? '★' : '☆'}</button>
+        <button onclick="deleteChat('${c.id}')">삭제</button>
+      </span>
+    </li>
+  `).join("") || "<li>채팅 기록 없음</li>";
+}
+function toggleFav(id) {
+  let chats = JSON.parse(localStorage.getItem("chatHistory") || "[]");
+  const chat = chats.find(c => c.id === id);
+  if (chat) chat.favorite = !chat.favorite;
+  localStorage.setItem("chatHistory", JSON.stringify(chats));
+  renderChatSettings();
+}
+function deleteChat(id) {
+  let chats = JSON.parse(localStorage.getItem("chatHistory") || "[]");
+  chats = chats.filter(c => c.id !== id);
+  localStorage.setItem("chatHistory", JSON.stringify(chats));
+  renderChatSettings();
+}
+function clearChats() {
+  if (confirm("모든 채팅 기록을 삭제하시겠습니까?")) {
+    localStorage.removeItem("chatHistory");
+    renderChatSettings();
+  }
+}
+
+
+// ========================= 사이드바 개인정보 불러오는거 =========================
+async function showPersonalInfo() {
+  // 1) API 호출
+  const res = await fetch(`${API_BASE}/api/me`, { credentials: "include" });
+  const data = await res.json();
+  if (!data.ok) return alert("로그인이 필요합니다");
+
+  const u = data.user;
+
+  // 2) 값 넣기
+
+  document.getElementById('p-name').textContent = u.name;
+  document.getElementById('p-student').textContent = u.uid;
+  document.getElementById('p-dept').textContent = u.department;
+  document.getElementById('p-role').textContent = u.role;
+  document.getElementById('p-email').textContent = u.email;
+
+  // 3) 화면 전환
+  document.getElementById("dashboardView").style.display = "none";
+  document.getElementById("personal-section").style.display = "block";
+
+function showDashboard() {
+  document.getElementById("personal-section").style.display = "none";
+  document.getElementById("dashboardView").style.display = "block";
+}
+
+}
+
+</script>
+
+
+</body>
+</html>
