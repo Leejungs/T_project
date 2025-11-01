@@ -4,4 +4,14 @@ faster_whisper==1.2.0
 pydantic==2.12.0
 pymongo==4.15.3
 python-dotenv==1.1.1
+<<<<<<< HEAD
 asgiref
+=======
+langchain==0.1.14
+langchain-openai==0.1.1
+pypdf==4.1.0
+tiktoken==0.11.0
+langchain-huggingface==0.0.3
+langchain-chroma==0.1.2
+python-multipart
+>>>>>>> b08c2b0 (upgrade everything)
