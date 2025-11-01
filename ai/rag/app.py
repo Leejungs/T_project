@@ -4,8 +4,13 @@ from datetime import datetime, timedelta
 from pymongo import MongoClient
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
+<<<<<<< HEAD
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
+=======
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.schema import Document
+>>>>>>> b08c2b0 (upgrade everything)
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
@@ -226,4 +231,8 @@ def rag_debug_count():
         col = get_collection(cli, name=config.COLLECTION_NAME)
         return {"chroma_dir": config.CHROMA_DIR, "collection": config.COLLECTION_NAME, "count": col.count()}
     except Exception as e:
+<<<<<<< HEAD
         return {"error": str(e)}
+=======
+        return {"error": str(e)}
+>>>>>>> b08c2b0 (upgrade everything)
