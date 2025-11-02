@@ -130,16 +130,26 @@ async def _warmup():
         return
     warmup_state.update({"running": True, "done": False, "started_at": time.time(), "steps": []})
     try:
-        # LLM ping
+        _step("ensure_index_ready()")
+        await asyncio.to_thread(ensure_index_ready, False)
+
+        _step("load embedder()")
+        await asyncio.to_thread(embedder)
+
+        _step("retrieve('웜업 질문')")
+        await asyncio.to_thread(retrieve, "웜업 질문", 1)
+
+        # 위 1)에서 수정한 LLM 핑 호출
         try:
             _step("LLM ping")
-            _ = llm_chat(messages=[{"role": "user", "content": "ping"}], temperature=0.0, max_tokens=1)
+            _ = chat(messages=[{"role": "user", "content": "ping"}], temperature=0.0, max_tokens=1)
             _step("LLM ping ok")
         except Exception as e:
             _step(f"LLM ping failed: {e}")
 
         _step("all done")
     except Exception as e:
+        # ← 예외를 여기서 삼켜주어야 'Task exception was never retrieved'가 안 뜹니다.
         _step(f"warmup error: {type(e).__name__}: {e}")
     finally:
         warmup_state.update({"running": False, "done": True, "finished_at": time.time()})
@@ -382,112 +392,8 @@ app.mount("/", WsgiToAsgi(flask_app), name="frontend")
 # -----------------------------------------------------------------------------
 # Standalone LLM Ping (for testing)
 # -----------------------------------------------------------------------------
-<<<<<<< HEAD
-=======
-from typing import Optional, Dict, List
-from pydantic import BaseModel
-from fastapi import HTTPException
->>>>>>> b08c2b0 (upgrade everything)
 from llm_runtime.llm_client import chat as llm_chat
-from rag.refactored_rag import ingest_data, ask_question
 
-# --- Old RAG imports (to be removed or replaced) ---
-# from rag.auto_index import ensure_index_ready
-# from rag.ingest import ingest_all, embedder
-# from rag.retriever import retrieve
-# from rag.qa import answer as rag_answer
-
-<<<<<<< HEAD
-=======
-class IngestAllReq(BaseModel):
-    pdf_paths: Optional[List[str]] = None
-    mongo_query: Optional[Dict] = None
-
-@app.post("/rag/ingest")
-def rag_ingest(req: Optional[IngestAllReq] = None):
-    try:
-        ingest_data(pdf_paths=req.pdf_paths if req else None,
-                    mongo_query=req.mongo_query if req else None)
-        return {"status":"ok", "message": "Ingestion complete."}
-    except Exception as e:
-        raise HTTPException(500, f"Ingest failed: {e}")
-
-class RagChatReq(BaseModel):
-    query: str
-    top_k: int = 6
-    # dataset 등 필터: {"dataset": ["경영학과","전기공학과"]}
-    filters: Optional[Dict[str, List[str]]] = None
-
-@app.post("/rag/chat")
-def rag_chat(req: RagChatReq):
-    q = (req.query or "").strip()
-    if not q:
-        raise HTTPException(status_code=400, detail="Empty query")
-
-    t0 = time.perf_counter()
-
-    try:
-        result = ask_question(query=q, k=req.top_k, filters=req.filters)
-
-        latency_ms = int((time.perf_counter() - t0) * 1000)
-        return {
-            "answer": result["answer"],
-            "sources": result["sources"],
-            "latency_ms": latency_ms,   # 디버깅용 지연 시간
-        }
-
-    except TimeoutError:
-        raise HTTPException(status_code=504, detail="LLM timeout")
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"RAG failed: {e}")
-
-@app.post("/rag/preview")
-def rag_preview(req: RagChatReq):
-    try:
-        result = ask_question(query=req.query, k=req.top_k, filters=req.filters)
-        
-        chunks_output = []
-        for source in result["sources"]:
-            chunks_output.append({
-                "page": source.get("page"),
-                "source_type": source.get("source_type"),
-                "title": source.get("title"),
-                "dataset": source.get("dataset"),
-                "score": source.get("score", 0), # ask_question currently returns None for score
-                "text": source.get("text", "")[:500]
-            })
-        
-        return {"chunks": chunks_output}
-    except Exception as e:
-        raise HTTPException(500, f"Preview failed: {e}")
-
-# ---------- Mongo 디버그 ----------
-from pymongo import MongoClient
-from fastapi import APIRouter
-
-@app.get("/rag/debug/mongo")
-def rag_debug_mongo():
-    import os, traceback
-    from rag.config import MONGO_URI, MONGO_DB, MONGO_COLL, MONGO_UPDATED_FIELD
-    out = {"ok": False, "uri": MONGO_URI, "db": MONGO_DB, "coll": MONGO_COLL, "updated_field": MONGO_UPDATED_FIELD}
-    try:
-        cli = MongoClient(MONGO_URI)
-        db  = cli[MONGO_DB]
-        colls = [c for c in db.list_collection_names() if not c.startswith("system.")]
-        out["collections"] = colls
-        samples = {}
-        for name in colls[:5]:
-            doc = db[name].find_one()
-            samples[name] = {k: doc.get(k) for k in ["title","subject","content","body","summary","text","updated_at"]} if doc else None
-        out["samples"] = samples
-        out["ok"] = True
-    except Exception as e:
-        out["error"] = f"{type(e).__name__}: {e}"
-        out["trace"] = traceback.format_exc(limit=3)
-    return out
-
-# -- 임시 테스트
->>>>>>> b08c2b0 (upgrade everything)
 @app.get("/llm/ping")
 def llm_ping():
     try:

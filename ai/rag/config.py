@@ -26,20 +26,16 @@ MONGO_COLL = os.getenv("MONGO_COLL", "notices")      # "*"이면 모든 컬렉�
 MONGO_UPDATED_FIELD = os.getenv("MONGO_UPDATED_FIELD", "updated_at")
 
 # --- Chroma 벡터DB ---
-CHROMA_DIR = os.getenv("CHROMA_DIR", "/app/chroma_db")
+CHROMA_DIR = os.getenv("CHROMA_DIR", str(BASE_DIR / "rag" / "chroma_db"))
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "school_corpus")
-<<<<<<< HEAD
 EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "jhgan/ko-sroberta-multitask")
-=======
-EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "intfloat/multilingual-e5-small")
->>>>>>> b08c2b0 (upgrade everything)
 
 # --- 청크/검색 파라미터 ---
 def _getint(k, d): 
     try: return int(os.getenv(k, d))
     except: return d
 
-CHUNK_SIZE = _getint("CHUNK_SIZE", 250)
+CHUNK_SIZE = _getint("CHUNK_SIZE", 1200)
 CHUNK_OVERLAP = _getint("CHUNK_OVERLAP", 200)
 TOP_K = _getint("TOP_K", 6)
 FINAL_K = _getint("FINAL_K", 3)
