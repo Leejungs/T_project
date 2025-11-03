@@ -2,9 +2,30 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport"
+  content="width=device-width,
+           initial-scale=1.0,
+           maximum-scale=1.0,
+           user-scalable=no,
+           viewport-fit=cover">
 <title>양동이 챗봇 메인 페이지</title>
 <style>
+
+  html, body {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  touch-action: manipulation; /* ✅ 모든 확대 제스처 차단 /
+  -ms-touch-action: manipulation;
+  background: var(--bg);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  overscroll-behavior: contain; / ✅ 스크롤 튐 방지 /
+
+/ 삼성 인터넷 더블탭 확대 방지 */
+-webkit-tap-highlight-color: transparent;
+touch-action: pan-y pan-x; /* ✅ 스크롤만 허용 */
+}
   :root{
     --brand:#1565d8; --brand-dark:#0f4aa4;
     --bg:#f3f6fb; --card:#ffffff;
@@ -361,60 +382,6 @@ body.sidebar-closed .chat-box {
   width: fit-content;
   max-width: 75%;
 }
-
-
-  /* ====== 태블릿 규칙 ====== */
-  @media (max-width:1100px){
-    .tiles{grid-template-columns:repeat(2,1fr)}
-    .assistant-wrap{ bottom:110px; }
-    .assistant-bar{ grid-template-columns:100px 1fr 88px; }
-  }
-
-  /* ====== 모바일 규칙(핵심) ====== */
-  @media (max-width:768px){
-    :root{ --sbw: 78vw; --assist-shift:0px; }
-
-    /* 사이드바: 기본 접힘(오버레이 모드) */
-    .sidebar{
-      transform: translateX(-100%);
-      z-index:100;
-    }
-    body.sb-open .sidebar{ transform: translateX(0); }
-    /* 배경 딤 */
-    .sb-dim{
-      position: fixed; inset:0; background:rgba(0,0,0,.35);
-      z-index:90; display:none;
-    }
-    body.sb-open .sb-dim{ display:block; }
-
-    /* 메인 좌여백 제거 */
-    .main{ margin-left:0 !important; }
-    .content{ padding:16px !important; }
-
-    /* 패널/타일 축소 + 1열 */
-    .panel{
-      width:100% !important; margin:12px auto 120px !important;
-      padding:16px !important; border-radius:14px !important;
-      box-shadow:0 6px 16px rgba(0,0,0,.06) !important; background:#fff !important;
-    }
-    .tiles{ grid-template-columns:1fr !important; gap:12px !important; }
-    .tile{ padding:16px !important; border-radius:12px !important; }
-
-    /* 캐릭터 숨김 + 채팅바 중앙 */
-    .yang-stand{ display:none !important; }
-    .assistant-wrap{
-      left:50% !important; bottom:20px !important; transform:translateX(-50%) !important;
-      z-index:40;
-    }
-    .assistant-bar{
-      margin-left:0 !important;
-      width:min(92vw, 680px) !important;
-      grid-template-columns:90px 1fr 88px !important;
-    }
-    /* 사이드바 열릴 때 채팅바 아래로 */
-    body.sb-open .assistant-wrap{ z-index:10; }
-  }
-
   .sb-item .icon img.emoji{ width:16px; height:16px; display:block; }
   .tile .ic img.emoji{ width:28px; height:28px; display:block; }
   .chip-icon img.emoji, .mic img.emoji{ width:20px; height:20px; display:block; margin:0 auto; }
@@ -1231,7 +1198,322 @@ button.open-btn {
   background: var(--brand-dark);
   transform: translateY(-2px);
 }
+/* ==================== 모바일 전체 수정 ==================== */
+@media (max-width: 768px) {
+  :root { --sbw: 78vw; }
 
+  /* ----- 사이드바 ----- */
+  .sidebar {
+    position: fixed !important;
+    top: 0; left: 0; bottom: 0;
+    width: var(--sbw);
+    background: linear-gradient(180deg, var(--brand), var(--brand-dark));
+    z-index: 500;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: auto;
+  }
+  body.sb-open .sidebar {
+    transform: translateX(0);
+  }
+
+  /* ----- 딤 ----- */
+  .sb-dim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 400;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  body.sb-open .assistant-bar,
+  body.sb-open .assistant-wrap,
+  body.sb-open .chat-box {
+    z-index: 0 !important;          /* 🔽 가장 뒤로 */
+    opacity: 0.6 !important;        /* 살짝 흐리게 */
+    pointer-events: none !important;/* 클릭도 막기 */
+  }
+
+  body.sb-open .sb-dim {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* ----- 콘텐츠 및 카드 ----- */
+  .tiles {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px;
+  }
+  .tile {
+    padding: 20px;
+    border-radius: 14px;
+  }
+
+  /* ----- 오버레이 (짤림 방지) ----- */
+  .tile.active {
+    position: fixed;
+    top: env(safe-area-inset-top);
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100vw - 20px);
+    height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    background: var(--card);
+    z-index: 500;
+    border-radius: 16px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+  }
+  .overlay-inner {
+    padding: 20px 16px calc(24px + env(safe-area-inset-bottom));
+  }
+
+  html body .assistant-bar {
+  position: fixed !important;
+  bottom: -55px !important; /* 🔽 기존 0 → 살짝 더 내려서 화면 아래쪽으로 */
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 94% !important;
+  height: 64px !important;
+  background: linear-gradient(180deg, #3b3f4a, #2e323b) !important;
+  border-radius: 30px !important;
+  box-shadow: 0 -2px 15px rgba(0,0,0,0.25) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 10px 500px !important;
+  gap: 10px !important;
+  z-index: 9999 !important;
+}
+  html body .assistant-bar {
+    bottom: -100px !important; /* 🔹 약간 더 내림 (기기별 여백 대응) */
+    width: 100% !important;
+    border-radius: 20px 20px 0 0 !important;
+  }
+  .assistant-bar .bar-left,
+  .assistant-bar .bar-right {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  .assistant-bar .bar-left button,
+  .assistant-bar .bar-right button {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 12px !important;
+    border: none !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #fff !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+   /* 🔹 중앙 입력창 */
+  .assistant-bar .bar-center {
+    flex: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  .assistant-bar .bar-center input {
+    pointer-events: auto !important; /* 🔹 클릭/입력 가능 */
+    z-index: 10001 !important;       /* 🔹 제일 위로 올림 */
+    position: relative !important;
+  width: 100% !important;
+  height: 48px !important; /* 🔹 기존 42px → 48px (세로 높이 확대) */
+  border-radius: 18px !important; /* 🔹 둥글게 조정 */
+  border: none !important;
+  outline: none !important;
+  background: rgba(255, 255, 255, 0.18) !important; /* 조금 더 밝은 톤 */
+  color: #fff !important;
+  font-size: 15px !important;
+  padding: 0 63px !important; /* 🔹 양쪽 여백 확대 */
+  flex: 1 !important;
+}
+.assistant-bar .bar-center input:focus {
+  outline: none !important;
+  border: 1px solid #00a2ff !important;
+  background: rgba(255,255,255,0.25) !important;
+}
+
+/* 혹시 오버레이나 다른 박스가 덮는 경우 대비 */
+.chat-box,
+body.sb-open .assistant-bar {
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  z-index: 9998 !important;
+}
+  /* ✅ 어두운 배경일 때 글자 확실히 보이도록 */
+.assistant-bar .bar-center input::placeholder {
+  color: rgba(255,255,255,0.65) !important;
+}
+  
+  .assistant-bar .bar-right button.mic {
+    background: rgba(255,255,255,0.12) !important;
+  }
+  /* 🎤 마이크 버튼도 동일한 파란 계열로 */
+  .assistant-bar .bar-right .mic {
+    background: rgba(255,255,255,0.12) !important;
+    color: #fff !important;
+  }
+  /* 사이드바 열리면 감춤 */
+  body.sb-open .assistant-bar {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+  .assistant-bar .bar-center input::placeholder {
+    color: rgba(255,255,255,0.6) !important;
+  }
+/* 🔹 좌우 여백 줄여서 중앙 입력창 최대화 */
+.assistant-bar .bar-left {
+  flex-shrink: 0 !important;
+  gap: 4px !important; /* 🔹 아이콘 간격 약간 축소 */
+}
+
+.assistant-bar .bar-right {
+  flex-shrink: 0 !important;
+  gap: 6px !important;
+}
+
+.assistant-bar .bar-right button.send {
+  background: #00a2ff !important;
+  width: 46px !important;
+  height: 46px !important;
+  border-radius: 16px !important;
+}
+  /* ----- 기타 ----- */
+  .yang-stand { display: none !important; }
+}
+/* ✅ iPhone Safari 높이 잘림 완전 수정 */
+/* ✅ 시간표 오버레이: 스크롤 가능 + 크기 축소 버전 */
+@media (max-width: 768px) {
+.tile.active {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  height: 50vh; /* ✅ 크기 줄이기 (전체 화면의 80%) */
+  background: var(--card);
+  border-radius: 14px;
+  overflow: hidden; /* 내부 스크롤만 가능하게 */
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  z-index: 500;
+}
+
+/* ✅ 내부 내용 스크롤 전용 */
+.tile.active .overlay-inner {
+  height: 100%;
+  overflow-y: auto; /* ✅ 내부만 스크롤 */
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+}
+/* ✅ 시간표 표 깨짐/겹침 해결 및 가로 스크롤 버전 */
+.tile.active .overlay-inner {
+  width: 100%;
+  height: 100%;
+  overflow-x: auto; /* 가로 스크롤 허용 */
+  overflow-y: auto; /* 세로 스크롤 허용 */
+  -webkit-overflow-scrolling: touch;
+  padding: 10px;
+}
+
+/* 표를 전체 화면보다 약간 작게 표시 */
+.tile.active table {
+  width: max-content; /* 내용 크기에 맞게 가로 폭 확장 */
+  min-width: 600px; /* 최소 폭 설정 (너무 좁아지지 않게) */
+  border-collapse: collapse;
+  font-size: 11px; /* 🔹 글씨 더 작게 */
+  table-layout: auto;
+  margin: 0 auto;
+}
+
+/* 셀 간격, 줄바꿈 조정 */
+.tile.active th,
+.tile.active td {
+  padding: 3px 6px;
+  text-align: center;
+  white-space: nowrap; /* 🔹 줄바꿈 금지 (한 줄로 유지) */
+  border: 1px solid #ddd;
+}
+
+.tile.active th {
+  background: #f3f6fa;
+  font-weight: 600;
+}
+
+.tile.active td {
+  background: #fff;
+}
+
+.tile.active caption {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+}
+/* ========================= 타일 제목 한 줄로 고정 ========================= */
+.tile .txt .k {
+  font-size: 15px !important;        /* 약간 줄임 */
+  white-space: nowrap !important;    /* 줄바꿈 금지 */
+  overflow: hidden !important;       /* 넘치면 잘라냄 */
+  text-overflow: ellipsis !important;/* 말줄임표 처리 */
+  display: block;
+  max-width: 100%;                   /* 영역 제한 */
+}
+
+/* 모바일에서는 더 작게 조정 */
+@media (max-width: 768px) {
+  .tile .txt .k {
+    font-size: 14px !important;
+    letter-spacing: -0.3px;
+  }
+  /* 💬 채팅창: 입력창 위에 딱 붙이기 */
+  .chat-box {
+    position: fixed !important;
+    bottom: 50px !important;   /* 입력창 위로 정확히 배치 */
+    left: 50% !important;
+    transform: translateX(-50%);
+    width: 94% !important;
+    max-height: 45vh !important;
+    overflow-y: auto;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.08);
+    z-index: 9999 !important; /* ✅ 최상단으로 올림 */
+    transition: all 0.3s ease;
+  }
+  /* 📱 사이드바가 열렸을 때 */
+  body.sb-open .assistant-bar,
+  body.sb-open .chat-box {
+    opacity: 0 !important;          /* 완전 숨김 */
+    pointer-events: none !important;/* 클릭 막기 */
+    z-index: 0 !important;          /* 뒤로 보내기 */
+  }
+}
+/* ========================= 상단바 줄바꿈 방지 ========================= */
+header, .topbar, .navbar, .header {
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 제목(양동이 챗봇 1.0) 스타일 보정 */
+header h1, .topbar .logo, .navbar .title {
+  font-size: 17px !important;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* 날짜 텍스트도 한 줄 유지 */
+#todayText {
+  font-size: 14px !important;
+  white-space: nowrap !important;
+}
 
 </style>
 </head>
@@ -1603,7 +1885,7 @@ async function appendBotMessage(text) {
   const textEl = document.createElement("div");
   textEl.className = "text";
   bubble.appendChild(textEl);
-  chatBox.appendChild(풍선껌);
+  chatBox.appendChild(bubble);
   chatBox.scrollTop = chatBox.scrollHeight;
 
   // 완성형 단위 타이핑 효과
@@ -2600,8 +2882,50 @@ window.addEventListener("DOMContentLoaded", () => {
   loadCertNotices();      // ✅ 이 한 줄 추가
 });
 
-</script>
+// ✅ 사이드바 메뉴 클릭 시 각 기능 실행
+document.addEventListener("DOMContentLoaded", () => {
+  // "지난 7일" 버튼
+  const recentLogsBtn = document.querySelector(".sb-item[data-action='recentLogs']");
+  if (recentLogsBtn) {
+    recentLogsBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      openRecentLogs();
+      closeAllSidebars(); // 모바일일 때 자동 닫힘
+    });
+  }
 
+  // "개인정보" 버튼
+  const personalInfoBtn = document.querySelector(".sb-item[data-action='personalInfo']");
+  if (personalInfoBtn) {
+    personalInfoBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      await showPersonalInfo();
+      closeAllSidebars();
+    });
+  }
+
+  // "대시보드" 버튼 (홈)
+  const dashboardBtn = document.querySelector(".sb-item[data-action='dashboard']");
+  if (dashboardBtn) {
+    dashboardBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      showDashboard();
+      closeAllSidebars();
+    });
+  }
+
+  // "로그아웃" 버튼
+  const logoutBtn = document.querySelector(".sb-item[data-action='logout']");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      await logout();
+    });
+  }
+});
+
+
+</script>
 
 </body>
 </html>

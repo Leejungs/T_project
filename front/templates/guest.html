@@ -92,21 +92,11 @@
     padding:38px 36px;
   }
 .tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:18px;}
-.tile {
-  position: relative; /* ✅ 기준점 추가 */
-  background: #f9fbff;
-  border-radius: 18px;
-  padding: 50px;
-  box-shadow: 0 3px 0 #e3ecff inset, var(--shadow);
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  cursor: pointer;
-  transition: transform .12s ease, box-shadow .12s ease;
-  text-decoration: none;
-  color: inherit;
-}
-
+  .tile{
+    background:#f9fbff; border-radius:18px; padding:50px; box-shadow:0 3px 0 #e3ecff inset, var(--shadow);
+    display:flex; gap:14px; align-items:center; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease;
+    text-decoration:none; color:inherit;
+  }
   .tile:hover{transform:translateY(-2px); box-shadow:0 10px 28px rgba(0,0,0,.08)}
   .tile .ic{width:56px; height:56px; border-radius:14px; display:grid; place-items:center; background:#e9f1ff; font-size:22px;}
   .tile .txt .k{font-weight:750}
@@ -543,6 +533,137 @@ body.dark .tile {
 body.dark .assistant-bar {
   background: #374151;
 }
+/* ✅ 캠퍼스 안내 이미지 및 리스트 */
+.campus-map {
+  text-align: center;
+  margin-bottom: 12px;
+}
+.campus-map img {
+  width: 100%;
+  max-width: 550px;
+  height: auto;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+.map-caption {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+/* ✅ 스크롤 영역 설정 */
+.scroll-body {
+  flex: 1 1 auto;
+  max-height: 55vh;          /* 🔹 카드 내부 최대 높이 */
+  overflow-y: auto;          /* 세로 스크롤 가능 */
+  padding-right: 8px;
+  -webkit-overflow-scrolling: touch; /* 모바일 부드럽게 */
+  overscroll-behavior: contain;
+}
+
+/* ✅ 리스트 스타일 */
+.campus-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 10px;
+}
+.campus-list li {
+  background: var(--card);
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.campus-list h4 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: var(--brand-dark);
+}
+.campus-list .desc {
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.scroll-body::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-body::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.2);
+  border-radius: 8px;
+}
+
+/* ✅ 학과 리스트 */
+.dept-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dept-list li {
+  background: var(--card);
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.dept-list h4 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: var(--brand-dark);
+}
+
+.dept-list button {
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: 0.2s;
+}
+
+.dept-list button:hover {
+  background: var(--brand-dark);
+}
+/* ✅ 개별 학과 상세 오버레이 */
+.dept-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.dept-content {
+  background: var(--card, #fff);
+  color: var(--text, #1f2a37);
+  border-radius: 16px;
+  width: 70%;
+  max-height: 80%;
+  overflow-y: auto;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.3);
+  padding: 30px;
+  animation: fadeIn 0.3s ease;
+}
+.close-btn {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  font-size: 24px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text, #333);
+}
+@keyframes fadeIn {
+  from {opacity: 0; transform: translateY(10px);}
+  to {opacity: 1; transform: translateY(0);}
+}
 
 </style>
 </head>
@@ -597,109 +718,82 @@ body.dark .assistant-bar {
   <div class="board">
     <div class="panel">
       <div class="tiles">
-        <!-- 1️⃣ 입학 안내 -->
-        <div class="tile">
-          <div class="ic">🏫</div>
-          <div class="txt">
-            <div class="k">입학 안내</div>
-            <div class="s">모집요강 / 지원자격 / 전형일정</div>
-          </div>
-          <div class="tile-overlay">
-            <div class="overlay-inner">
-              <h3>🏫 입학 안내</h3>
-              <ul>
-                <li>모집 시기: 수시 1·2차 / 정시</li>
-                <li>지원 자격: 고등학교 졸업(예정)자</li>
-                <li>전형 방법: 학생부 / 면접 / 수능</li>
-              </ul>
-              <button class="open-btn">입학 홈페이지로 이동</button>
-            </div>
-          </div>
+      <!-- 1️⃣ 입학 안내 -->
+      <div class="tile">
+        <div class="ic">🏫</div>
+        <div class="txt">
+          <div class="k">입학 안내</div>
+          <div class="s">모집요강 / 지원자격 / 전형일정</div>
         </div>
 
-        <!-- 2️⃣ 학과 소개 -->
-        <div class="tile">
-          <div class="ic">📚</div>
-          <div class="txt">
-            <div class="k">학과 소개</div>
-            <div class="s">동양미래대학교 학과별 안내</div>
-          </div>
-          <div class="tile-overlay">
-            <div class="overlay-inner">
-              <h3>📚 학과 소개</h3>
-              <ul>
-                <li>AI소프트웨어학과</li>
-                <li>컴퓨터정보공학과</li>
-                <li>전자통신공학과</li>
-                <li>기계공학과, 전기공학과 등</li>
-              </ul>
-              <button class="open-btn">학과 홈페이지로 이동</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 3️⃣ 캠퍼스 안내 -->
-        <div class="tile">
-          <div class="ic">🌳</div>
-          <div class="txt">
-            <div class="k">캠퍼스 안내</div>
-            <div class="s">학교 위치 / 건물 안내</div>
-          </div>
-          <div class="tile-overlay">
-            <div class="overlay-inner">
-              <h3>🌳 캠퍼스 안내</h3>
-              <ul>
-                <li>주소: 서울특별시 구로구 경인로 445</li>
-                <li>주요 건물: 본관, 도서관, AI센터</li>
-                <li>지하철 1호선 구로역 도보 10분</li>
-              </ul>
-              <button class="open-btn">캠퍼스 맵 보기</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 4️⃣ 장학금 / 등록금 안내 -->
-        <div class="tile">
-          <div class="ic">💰</div>
-          <div class="txt">
-            <div class="k">장학금 / 등록금 안내</div>
-            <div class="s">등록금 납부 및 장학 제도</div>
-          </div>
-          <div class="tile-overlay">
-            <div class="overlay-inner">
-              <h3>💰 장학금 / 등록금 안내</h3>
-              <ul>
-                <li>국가장학금 Ⅰ·Ⅱ유형 신청 가능</li>
-                <li>교내 장학: 성적우수 / 근로 / 봉사</li>
-                <li>등록금 분할 납부 가능</li>
-              </ul>
-              <button class="open-btn">자세히 보기</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 5️⃣ 학사 일정 (공개용) -->
-        <div class="tile">
-          <div class="ic">🗓️</div>
-          <div class="txt">
-            <div class="k">학사 일정 </div>
-            <div class="s">주요 학사 일정 / 행사</div>
-          </div>
-          <div class="tile-overlay">
-            <div class="overlay-inner">
-              <h3>🗓️ 학사 일정 </h3>
-              <ul>
-                <li>1학기 개강: 2025.03.03</li>
-                <li>중간고사: 2025.04.21 ~ 04.25</li>
-                <li>기말고사: 2025.06.16 ~ 06.20</li>
-              </ul>
-              <button class="open-btn">전체 일정 보기</button>
-            </div>
+        <div class="tile-overlay">
+          <div class="overlay-inner">
+            <h3>🏫 입학 안내</h3>
+            <ul id="admission-list">
+              <li>불러오는 중...</li>
+            </ul>
+            <button class="open-btn" id="admission-btn">입학 홈페이지로 이동</button>
           </div>
         </div>
       </div>
-    </div>
-  </div>
+
+
+          <!-- 2️⃣ 학과 소개 -->
+          <div class="tile" onclick="loadDepartments()">
+            <div class="ic">📚</div>
+            <div class="txt">
+              <div class="k">학과 소개</div>
+              <div class="s">동양미래대학교 학과별 안내</div>
+            </div>
+
+            <div class="tile-overlay">
+              <div class="overlay-inner">
+                <h3>📚 학과 소개</h3>
+
+                <div class="scroll-body" id="deptContainer">
+                  <p>불러오는 중...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ✅ 개별 학과 상세 오버레이 -->
+          <div id="deptOverlay" class="dept-overlay" style="display:none;">
+            <div class="dept-content">
+              <button class="close-btn" onclick="closeDeptDetail()">×</button>
+              <div id="deptDetail"><p>불러오는 중...</p></div>
+            </div>
+          </div>
+
+          <!-- ✅ 캠퍼스 안내 카드 -->
+          <div class="tile" onclick="loadCampusInfo()">
+            <div class="ic">🌳</div>
+            <div class="txt">
+              <div class="k">캠퍼스 안내</div>
+              <div class="s">학교 위치 / 건물 안내</div>
+            </div>
+
+          <div class="tile-overlay">
+            <div class="overlay-inner">
+              <h3>🏫 캠퍼스 건물 안내</h3>
+
+              <!-- ✅ 지도 이미지 -->
+              <div class="campus-map">
+                <img src="/image/campus_map.png" alt="동양미래대학교 캠퍼스 지도">
+                <p class="map-caption">동양미래대학교 캠퍼스 안내도</p>
+              </div>
+
+              <!-- ✅ 스크롤 가능한 콘텐츠 -->
+              <div class="scroll-body" id="campusContainer">
+                <p>불러오는 중...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+
+        
 </section>
 <!-- 💬 채팅 말풍선 박스 -->
 <div class="chat-box" id="chatBox"></div>
@@ -1081,6 +1175,173 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   });
 });
+// ===== 캠퍼스 안내 불러오기 =====
+async function loadCampusInfo() {
+  const box = document.getElementById("campusContainer");
+  box.innerHTML = `<p>🏫 캠퍼스 안내 정보를 불러오는 중...</p>`;
+
+  try {
+    const res = await fetch("/api/campus/place");
+    const data = await res.json();
+
+    if (!data.ok || !data.places?.length) {
+      box.innerHTML = `<p>📭 안내 정보가 없습니다.</p>`;
+      return;
+    }
+
+    box.innerHTML = `
+      <ul class="campus-list">
+        ${data.places.map(p => `
+          <li>
+            <h4>${p.title}</h4>
+            <p class="desc">${p.content}</p>
+            <p><b>담당부서:</b> ${p.manager} | <b>전화:</b> ${p.phone}</p>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+  } catch (err) {
+    console.error("캠퍼스 안내 로드 오류:", err);
+    box.innerHTML = `<p>❌ 데이터를 불러오지 못했습니다.</p>`;
+  }
+}
+
+
+// ===== 학과 리스트 불러오기 =====
+async function loadDepartments() {
+  const box = document.getElementById("deptContainer");
+  box.innerHTML = `<p>📚 학과 정보를 불러오는 중...</p>`;
+
+  try {
+    const res = await fetch("/api/department/list");
+    const data = await res.json();
+
+    if (!data.ok || !data.departments?.length) {
+      box.innerHTML = `<p>📭 학과 정보가 없습니다.</p>`;
+      return;
+    }
+
+    box.innerHTML = `
+      <ul class="dept-list">
+        ${data.departments.map(d => `
+          <li class="dept-item" onclick="loadDepartmentDetail('${d.name}')">
+            <h4>${d.name}</h4>
+            <p class="desc">${d.desc || "학과 소개 준비 중입니다."}</p>
+            ${d.link ? `<button onclick="event.stopPropagation();window.open('${d.link}','_blank')">학과 홈페이지 이동</button>` : ""}
+          </li>
+        `).join("")}
+      </ul>
+    `;
+  } catch (err) {
+    console.error("학과 정보 로드 오류:", err);
+    box.innerHTML = `<p>❌ 데이터를 불러오지 못했습니다.</p>`;
+  }
+}
+
+// ===== 개별 학과 상세 보기 =====
+async function loadDepartmentDetail(name) {
+  const overlay = document.getElementById("deptOverlay");
+  const box = document.getElementById("deptDetail");
+
+  overlay.style.display = "flex";
+  box.innerHTML = `<p>🔍 ${name} 학과 정보를 불러오는 중...</p>`;
+
+  try {
+    const res = await fetch(`/api/department/${name}`);
+    const data = await res.json();
+
+    if (!data.ok) {
+      box.innerHTML = `<p>❌ ${name} 학과 정보를 찾을 수 없습니다.</p>`;
+      return;
+    }
+
+    const d = data.department;
+    let html = `<h2>${d["학과명"]}</h2>`;
+
+    // 🎓 교육과정
+    if (d["교육과정"]?.length) {
+      html += `<h3>🎓 교육과정</h3><ul>`;
+      d["교육과정"].forEach(sub => {
+        html += `<li>${sub["교과목명"]} (${sub["이수구분"]}, ${sub["학점"]}학점)</li>`;
+      });
+      html += `</ul>`;
+    }
+
+    // 👨‍🏫 교수소개
+    if (d["교수소개"]) {
+      html += `<h3>👨‍🏫 교수진</h3><ul>`;
+      for (const [prof, info] of Object.entries(d["교수소개"])) {
+        html += `<li><b>${prof}</b> — ${info["전공분야"] || ""} (${info["이메일"] || ""})</li>`;
+      }
+      html += `</ul>`;
+    }
+
+    // 🏫 전공동아리
+    if (d["전공동아리"]) {
+      html += `<h3>🏫 전공동아리</h3>`;
+      for (const [club, info] of Object.entries(d["전공동아리"])) {
+        html += `
+          <div class="club">
+            <b>${info["전공동아리 이름"]}</b> (${info["지도교수"] || ""})<br>
+            <p>${info["동아리 소개"] || ""}</p>
+          </div>
+        `;
+      }
+    }
+
+    // 💼 졸업 후 진로
+    if (d["학과소개(졸업 후 진로)"]) {
+      const career = d["학과소개(졸업 후 진로)"];
+      html += `<h3>💼 졸업 후 진로</h3>`;
+      if (career["취업분야"]) html += `<p>취업분야: ${career["취업분야"].join(", ")}</p>`;
+      if (career["취업업체"]) html += `<p>취업업체: ${career["취업업체"].join(", ")}</p>`;
+      if (career["취득가능자격증"]) html += `<p>자격증: ${career["취득가능자격증"].join(", ")}</p>`;
+    }
+
+    box.innerHTML = html;
+  } catch (err) {
+    console.error("상세정보 로드 오류:", err);
+    box.innerHTML = `<p>❌ 데이터를 불러오지 못했습니다.</p>`;
+  }
+}
+
+// ===== 상세 닫기 =====
+function closeDeptDetail() {
+  const overlay = document.getElementById("deptOverlay");
+  overlay.style.display = "none";
+}
+// ===== 입학 정보 불러오기 =====
+async function loadAdmissionInfo() {
+  const ul = document.getElementById("admission-list");
+  ul.innerHTML = `<li>불러오는 중...</li>`;
+  try {
+    const res = await fetch("/api/admission/info");
+    const data = await res.json();
+    if (!data.ok) {
+      ul.innerHTML = `<li>❌ ${data.msg || "입학 정보를 불러오지 못했습니다."}</li>`;
+      return;
+    }
+
+    const info = data.info;
+    ul.innerHTML = `
+      <li>모집 시기: ${info.모집시기}</li>
+      <li>지원 자격: ${info.지원자격}</li>
+      <li>전형 방법: ${info.전형방법}</li>
+    `;
+
+    // ✅ 버튼: PDF를 새 탭에서 열기
+document.getElementById("admission-btn").onclick = () => {
+  window.open("https://ipsi.dongyang.ac.kr/dongyang_ipsi/501/subview.do", "_blank");
+};
+  } catch (e) {
+    ul.innerHTML = `<li>❌ 오류: ${e.message}</li>`;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", loadAdmissionInfo);
+
+
+
 </script>
 
 </body>

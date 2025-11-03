@@ -14,6 +14,7 @@ import requests
 from dotenv import load_dotenv
 import os
 
+
 load_dotenv()  # ✅ .env 파일 읽기
 
 
@@ -47,14 +48,23 @@ app = Flask(__name__, static_folder="image", static_url_path="/image")
 app.secret_key = SECRET_KEY
 app.permanent_session_lifetime = timedelta(days=7)
 
-# 한글 응답 깨짐 방지
-app.config["JSON_AS_ASCII"] = False
+# ✅ 세션 쿠키 설정 (iPhone/Safari 호환)
+app.config.update(
+    JSON_AS_ASCII=False,
+    SESSION_COOKIE_SAMESITE="None",
+    SESSION_COOKIE_SECURE=False
+)
 
 CORS(
     app,
     supports_credentials=True,
-    resources={r"/*": {"origins": CORS_ORIGINS or ["*"]}},
+    origins=[
+        "http://127.0.0.1:8001", 
+        "http://localhost:8001",
+        "http://192.168.43.138:8001"  # ⚡ 모바일 접속 주소
+    ]
 )
+
 
 # ----------------------------
 # 3) MySQL 연결
@@ -823,6 +833,186 @@ def api_certificates():
 
     print("📘 자격증 관련 공지 개수:", len(results))
     return jsonify(ok=True, certificates=results)
+
+# =======================================
+# 🏫 캠퍼스 건물 안내 API
+# =======================================
+@app.get("/api/campus/place")
+def api_campus_place():
+    """학교 위치 및 건물 안내 데이터 불러오기"""
+    from pymongo import MongoClient
+    import os
+
+    try:
+        client = MongoClient(os.getenv("MONGO_URI"))
+        db = client["University_Introduction"]
+        col = db["place"]
+
+        # 최신순으로 모든 문서 조회
+        docs = list(col.find().sort("last_updated", -1))
+        results = []
+
+        for d in docs:
+            results.append({
+                "title": d.get("title", "제목 없음"),
+                "category": d.get("category", ""),
+                "content": d.get("안내", ""),
+                "manager": d.get("담당부서", ""),
+                "phone": d.get("전화번호", ""),
+                "keywords": d.get("키워드", []),
+            })
+
+        print(f"🏫 캠퍼스 안내 데이터 개수: {len(results)}")
+        return jsonify(ok=True, places=results)
+    except Exception as e:
+        print("❌ 캠퍼스 안내 오류:", e)
+        return jsonify(ok=False, error=str(e))
+# =======================================
+# 🏫 학과 정보 API
+# =======================================
+# =======================================
+# 🏫 학과 정보 API (MONGO_URI 사용 + 경로 호환 + 로깅)
+# =======================================
+@app.route("/api/department/list")
+@app.route("/api/departments")
+def department_list():
+    from pymongo import MongoClient
+    import os, traceback
+
+    try:
+        # ✅ MongoDB Atlas 연결
+        client = MongoClient("mongodb+srv://wjdtndpdy0920:dlwjd09tn20@cluster0.zsdkexf.mongodb.net/")
+        db = client["depatement_all_db"]   # ✅ 오타 수정됨
+        col = db["department"]              # ✅ 컬렉션 이름 확인
+
+        data = []
+        for d in col.find():
+            # 모든 key를 문자열화 (한글 깨짐 방지)
+            doc = {str(k): v for k, v in d.items()}
+
+            # ✅ 학과명 (필수)
+            name = doc.get("학과명") or doc.get("학과") or doc.get("name") or "학과명 없음"
+
+            # ✅ 학과 소개 추출
+            desc = "학과 소개 준비 중입니다."
+            try:
+                # sections 내부에서 "학과소개(졸업 후 진로)" → "취업분야" 같은 하위 필드 존재
+                sections = doc.get("sections", {})
+                if isinstance(sections, dict):
+                    if "소개" in sections:
+                        desc = sections["소개"]
+                    elif "학과소개(졸업 후 진로)" in sections:
+                        intro_obj = sections["학과소개(졸업 후 진로)"]
+                        if isinstance(intro_obj, dict) and "취업분야" in intro_obj:
+                            desc = f"주요 취업 분야: {', '.join(intro_obj['취업분야'])}"
+                        else:
+                            desc = "학과 소개 준비 중입니다."
+            except:
+                pass
+
+            # ✅ 링크 처리
+            link = doc.get("링크") or doc.get("url") or ""
+
+            data.append({
+                "name": name,
+                "desc": desc,
+                "link": link
+            })
+
+        print(f"📘 학과 문서 개수: {len(data)}")
+        print("🔍 예시 데이터:", data[:3])
+        return jsonify(ok=True, departments=data)
+
+    except Exception as e:
+        print("❌ /api/department/list 오류:", e)
+        traceback.print_exc()
+        return jsonify(ok=False, msg=str(e), departments=[]), 500
+
+from urllib.parse import unquote
+
+@app.route("/api/department/<name>")
+def department_detail(name):
+    from pymongo import MongoClient
+    import traceback
+    from urllib.parse import unquote
+
+    try:
+        name = unquote(name).strip()  # ✅ 한글 URL + 공백 정리
+        client = MongoClient("mongodb+srv://wjdtndpdy0920:dlwjd09tn20@cluster0.zsdkexf.mongodb.net/")
+        db = client["depatement_all_db"]
+        col = db["department"]
+
+        # ✅ 다양한 경우를 커버하도록 검색
+        doc = col.find_one({
+            "$or": [
+                {"학과명": name},
+                {"학과": name},
+                {"name": name},
+                {"sections.학과명": name},
+            ]
+        })
+
+        if not doc:
+            print(f"⚠️ DB에서 {name} 문서를 찾지 못했습니다.")
+            return jsonify(ok=False, msg=f"{name} 학과 정보를 찾을 수 없습니다."), 404
+
+        doc["_id"] = str(doc["_id"])
+        sections = doc.get("sections", {})
+
+        curriculum = sections.get("교육과정", {}).get("전문학사", [])
+        professors = sections.get("교수소개", {})
+        clubs = sections.get("전공동아리", {})
+        career = sections.get("학과소개(졸업 후 진로)", {})
+
+        result = {
+            "학과명": doc.get("학과명") or doc.get("name") or name,
+            "교육과정": curriculum,
+            "교수소개": professors,
+            "전공동아리": clubs,
+            "학과소개(졸업 후 진로)": career
+        }
+
+        print(f"✅ {name} 상세정보 불러오기 성공")
+        return jsonify(ok=True, department=result)
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify(ok=False, msg=str(e)), 500
+# ----------------------------
+#  입학 안내 PDF 분석 API
+# ----------------------------
+@app.get("/api/admission/info")
+def api_admission_info():
+    """📘 school_rules.pdf에서 주요 입학 안내 문구 추출"""
+    from PyPDF2 import PdfReader
+    import os
+
+    pdf_path = "/Users/choijian/Downloads/ollama_chatbot-main/ai/data/docs/school_rules.pdf"
+    if not os.path.exists(pdf_path):
+        return jsonify(ok=False, msg="입학 안내 PDF를 찾을 수 없습니다."), 404
+
+    try:
+        reader = PdfReader(pdf_path)
+        text = ""
+        for page in reader.pages[:2]:  # 🔹 앞 2페이지만 읽기
+            text += page.extract_text() + "\n"
+
+        info = {
+            "모집시기": "수시 1·2차 / 정시" if "수시" in text or "정시" in text else "확인 필요",
+            "지원자격": "고등학교 졸업(예정)자" if "고등학교" in text else "확인 필요",
+            "전형방법": "학생부 / 면접 / 수능" if any(k in text for k in ["학생부", "면접", "수능"]) else "확인 필요"
+        }
+
+        return jsonify(ok=True, info=info)
+
+    except Exception as e:
+        return jsonify(ok=False, msg=f"PDF 분석 실패: {e}"), 500
+# ✅ PDF 정적 경로 설정
+@app.route("/docs/<path:filename>")
+def serve_docs(filename):
+    docs_dir = os.path.join(os.path.dirname(__file__), "data", "docs")
+    return send_from_directory(docs_dir, filename)
+
 
 # ----------------------------
 # 8) HTML 페이지 라우팅
