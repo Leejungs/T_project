@@ -114,13 +114,24 @@ body.dark .assistant-bar {
 
   .content{flex:1; padding:50px; position:relative;}
   
-  .board{height:100%; display:grid; place-items:center;}
-  .panel{
-    width:min(1200px, 92%); margin:40px auto 200px;
-    background:#f7faff; border-radius:24px;
-    box-shadow:inset 0 10px 18px rgba(0,0,0,.03), 0 18px 40px rgba(23,57,132,.08);
-    padding:38px 36px;
+  .board {
+    height: auto; /* 100% → auto로 변경 (내부 내용 높이만큼) */
+    display: flex; /* grid → flex로 변경 */
+    flex-direction: column; /* 위에서 아래로 배치 */
+    align-items: center; /* 가운데 정렬 */
+    justify-content: flex-start; /* 위쪽으로 정렬 */
+    padding-top: 20px; /* 살짝 여백만 */
   }
+
+  .panel {
+    width: min(1200px, 92%);
+    margin: 20px auto; /* 상단/하단 여백 모두 줄이기 */
+    background: #f7faff;
+    border-radius: 24px;
+    box-shadow: inset 0 10px 18px rgba(0,0,0,.03), 0 18px 40px rgba(23,57,132,.08);
+    padding: 38px 36px;
+  }
+
 /* ✨ 카드 안내판 효과 */
 /* ✨ 카드 전체를 덮는 팝업형 스타일 */
 /* 패널을 오버레이 기준점으로 */
@@ -211,22 +222,38 @@ body.dark .assistant-bar {
   z-index: 2 !important;
 }
 
-/* 클릭 시 content 중앙에 맞춰 확대 */
+/* === 클릭 시 열리는 카드 위치 상단으로 조정 === */
 .tile.active {
-  position: absolute;
-  top: 80px;
+  position: fixed;
+  top: 40%; /* 🔼 50% → 40% 로 변경 (상단으로 10% 이동) */
   left: 50%;
-  transform: translateX(-50%) scale(1);
+  transform: translate(-50%, -50%) scale(1);
   width: min(1100px, 90%);
   height: 600px;
   background: #ffffff;
   border-radius: 24px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.18);
-  z-index: 200;
-  transition: all 0.4s ease;
+  z-index: 500;
+  transition: all 0.3s ease;
   overflow: hidden;
 }
 
+
+/* ✅ 카드가 열려도 grid 구조에 영향 안 주도록 */
+.tiles .tile.active {
+  grid-column: auto;
+}
+
+/* ✅ 다크모드 대응 */
+body.dark .tile.active {
+  background: #1f2937;
+  color: #f3f4f6;
+}
+.tile.active.closing {
+  opacity: 0;
+  transform: translate(-50%, -48%) scale(0.97);
+  transition: all 0.3s ease;
+}
 /* 아이콘 / 텍스트 숨기기 */
 .tile.active .txt,
 .tile.active .ic {
@@ -391,7 +418,13 @@ body.sidebar-closed .chat-box {
   .sb-item .icon img.emoji{ width:16px; height:16px; display:block; }
   .tile .ic img.emoji{ width:28px; height:28px; display:block; }
   .chip-icon img.emoji, .mic img.emoji{ width:20px; height:20px; display:block; margin:0 auto; }
-  
+  /* 이모지 크기 축소 */
+.msg.bot .text img.emoji {
+  width: 20px !important;
+  height: 20px !important;
+  vertical-align: middle;
+}
+
   /* === 채팅 모드 전환 === */
 body.chatting .panel,
 body.chatting .tiles {
@@ -839,6 +872,367 @@ body.dark .msg.bot.typing {
   margin-right: 6px;
 }
 
+/* ========================= 시간표 기본 스타일 ========================= */
+.timetable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+}
+.timetable th, .timetable td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  min-width: 100px;
+}
+.timetable th {
+  background: var(--brand);
+  color: white;
+}
+.room {
+  font-size: 0.85em;
+  color: var(--muted);
+}
+.filter-bar {
+  margin-bottom: 12px;
+}
+
+/* ========================= 시간표 카드 ========================= */
+.controls {
+  margin-bottom: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.controls select, .controls button {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+.timetable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  background: var(--card);
+}
+.timetable th, .timetable td {
+  border: 1px solid #ddd;
+  padding: 6px;
+  text-align: center;
+  font-size: 13px;
+}
+.timetable th {
+  background: var(--brand);
+  color: #fff;
+}
+.room {
+  font-size: 0.8em;
+  color: var(--muted);
+}
+.time-text {
+  font-size: 12px;
+  color: #6b7280;
+  display: block;
+  margin-top: 4px;
+}
+.loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  height: 200px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.spinner {
+  border: 3px solid #e0e0e0;
+  border-top: 3px solid var(--brand);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+#timetableContainer {
+  transition: opacity 0.3s ease;
+}
+
+
+/* ========================= 성적 모달 ========================= */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 9999;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(3px);
+  animation: fadeIn 0.3s ease;
+}
+
+.modal-content {
+  background: var(--card);
+  color: var(--text);
+  padding: 24px 30px;
+  border-radius: 20px;
+  width: 80%;
+  max-width: 900px;
+  max-height: 80%;
+  overflow-y: auto;
+  box-shadow: var(--shadow);
+  animation: slideUp 0.3s ease;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 20px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.close-btn:hover {
+  color: var(--brand);
+}
+
+/* 테이블 스타일 */
+.grade-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 15px;
+}
+.grade-table th, .grade-table td {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 10px 12px;
+  text-align: center;
+}
+.grade-table th {
+  background: #f3f4f6;
+  color: #374151;
+  font-weight: 600;
+}
+body.dark .grade-table th {
+  background: #1f2937;
+  color: #f3f4f6;
+}
+body.dark .grade-table td {
+  border-color: #374151;
+}
+
+/* 애니메이션 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+/* ========================= 필터 영역 ========================= */
+.filter-area {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  align-items: center;
+}
+.filter-area select, .filter-btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+  background: var(--card);
+  color: var(--text);
+}
+.filter-btn {
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.filter-btn:hover {
+  background: var(--brand-dark);
+}
+
+body.dark .filter-area select {
+  background: #1f2937;
+  color: #f3f4f6;
+  border-color: #374151;
+}
+
+/* ========================= 졸업 진행률 바 ========================= */
+.grad-requirements {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 14px;
+  color: #374151;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.grad-requirements b {
+  color: var(--brand);
+}
+
+.grad-check {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: #f3f4f6;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.grad-check .ok {
+  color: #16a34a;  /* 초록 ✅ */
+  font-weight: 600;
+}
+
+.grad-check .no {
+  color: #dc2626;  /* 빨강 ❌ */
+  font-weight: 600;
+}
+/* ===== 버튼 클릭 방해 방지 설정 ===== */
+.open-btn {
+  position: relative;
+  z-index: 3000; /* 버튼은 최상위 */
+  pointer-events: auto; /* 클릭 가능하게 */
+}
+
+/* ===== 양동이 캐릭터는 클릭 막기 ===== */
+img[src*="yangdongi"], 
+.yangdongi, 
+.chatbot-avatar {
+  pointer-events: none !important;
+  z-index: 5; /* 낮게 조정 */
+}
+
+button.open-btn {
+  position: relative !important;
+  z-index: 999999 !important;
+  pointer-events: all !important;
+}
+
+/* ===== 채팅 입력창 클릭 영역 제한 ===== */
+.chatbox, 
+#chatBox, 
+.chat-input, 
+.chatbar, 
+.input-bar {
+  pointer-events: none !important;
+  z-index: 1; /* 맨 아래로 내려서 공지 타일 가리지 않게 */
+}
+
+/* 실제 입력필드만 클릭 가능하게 */
+.chatbox input,
+.chatbox button,
+.input-bar input,
+.input-bar button {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10; /* 입력 영역만 클릭 가능 */
+}
+
+/* ========================= 공지사항 리스트 ========================= */
+#noticeList {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0;
+}
+#noticeList li {
+  margin: 6px 0;
+  font-size: 14px;
+}
+#noticeList a {
+  color: var(--brand);
+  text-decoration: none;
+}
+#noticeList .date {
+  float: right;
+  color: #888;
+  font-size: 12px;
+}
+
+/* ========================= eClass 과제 목록 ========================= */
+.task-item {
+  margin: 8px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(21,101,216,0.05);
+  transition: 0.25s;
+}
+
+.task-item.pending {
+  border-left: 5px solid #f87171; /* 빨강 - 미제출 */
+}
+
+.task-item.done {
+  border-left: 5px solid #10b981; /* 초록 - 제출완료 */
+}
+
+.task-item.urgent {
+  background: rgba(255,0,0,0.08);
+  border-left: 5px solid #ef4444;
+  font-weight: 600;
+}
+
+.task-item:hover {
+  background: rgba(21,101,216,0.1);
+}
+
+/* eClass 카드 내부 */
+#eclassTaskList li {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  font-size: 15px;
+  list-style: none;
+}
+
+#eclassTaskList li span {
+  float: right;
+  font-weight: 600;
+  color: #f87171;
+}
+/* ========================= 자격증 안내 카드 ========================= */
+.cert-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cert-links a {
+  background: var(--brand);
+  color: white;
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.cert-links a:hover {
+  background: var(--brand-dark);
+  transform: translateY(-2px);
+}
+
+
 </style>
 </head>
 <body class="sidebar-closed">
@@ -895,7 +1289,6 @@ body.dark .msg.bot.typing {
       <div class="tiles">
 
 <!-- ✅ 수업 시간표 카드 -->
-<!-- ✅ 수업 시간표 -->
 <div class="tile">
   <div class="ic">🗓️</div>
   <div class="txt">
@@ -906,38 +1299,52 @@ body.dark .msg.bot.typing {
   <div class="tile-overlay">
     <div class="overlay-inner">
       <h3>📅 이번 주 수업 시간표</h3>
-      <ul>
-        <li>월요일 - 알고리즘 - 09:00 ~ 10:30 (C201)</li>
-        <li>화요일 - 데이터베이스 - 11:00 ~ 12:30 (A304)</li>
-        <li>수요일 - 인공지능 기초 - 13:00 ~ 14:30 (B105)</li>
-        <li>목요일 - 웹프로그래밍 - 15:00 ~ 16:30 (D202)</li>
-        <li>금요일 - 프로젝트 실습 - 10:00 ~ 12:00 (Lab 2)</li>
-      </ul>
-      <button class="open-btn" onclick="window.location.href='feature.html?feature=schedule'"> 자세히 보기</button>
+
+      <!-- ✅ 학년도/학기 선택 드롭다운 -->
+      <div class="controls">
+        <select id="yearSelect"></select>
+        <select id="semesterSelect">
+          <option value="1">1학기</option>
+          <option value="2" selected>2학기</option>
+        </select>
+      </div>
+
+      <!-- ✅ 시간표 표시 영역 -->
+      <div id="timetableContainer">
+        <p>⏳ 불러오는 중...</p>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- ✅ 자격증 안내 -->
+<!-- ✅ 자격증 안내 카드 -->
 <div class="tile">
-  <div class="ic">🧾</div>
+  <div class="ic">📋</div>
   <div class="txt">
     <div class="k">자격증 안내</div>
-    <div class="s">추천 자격증 / 시험일정</div>
+    <div class="s">관련 자격증 / 시험 일정</div>
   </div>
 
   <div class="tile-overlay">
     <div class="overlay-inner">
-      <h3>🧾 추천 자격증 & 시험 일정</h3>
-      <ul>
-        <li>정보처리기사 - 2025.10.20 (접수 마감: 10.05)</li>
-        <li>SQLD - 2025.11.12 (접수 마감: 10.30)</li>
-        <li>리눅스마스터 2급 - 2025.12.03 (접수 마감: 11.20)</li>
-      </ul>
-      <button class="open-btn" onclick="window.location.href='feature.html?feature=license'"> 자세히 보기</button>
+      <h3>📋 자격증 관련 공지사항</h3>
+
+      <!-- 🔹 공지 불러오는 영역 -->
+      <div id="certNoticeContainer"><p>불러오는 중...</p></div>
+
+      <!-- 🔹 버튼 바로가기 추가 -->
+      <div class="cert-links">
+        <a href="https://license.korcham.net/" target="_blank">💼 상공회의소 (컴활/워드)</a>
+        <a href="https://www.q-net.or.kr/" target="_blank">🧠 큐넷 (정보처리기사)</a>
+        <a href="https://cert.kmooc.kr/" target="_blank">📘 PCCE (프로그래밍 인증)</a>
+        <a href="https://www.toeic.co.kr/" target="_blank">✈️ TOEIC 공식</a>
+        <a href="https://ts.kotsa.or.kr/" target="_blank">🚗 교통안전공단 (운전면허)</a>
+        <a href="https://www.kdata.or.kr/" target="_blank">📊 데이터산업진흥원 (데이터분석)</a>
+      </div>
     </div>
   </div>
 </div>
+
 
 <!-- ✅ 학점 조회 -->
 <div class="tile">
@@ -950,33 +1357,56 @@ body.dark .msg.bot.typing {
   <div class="tile-overlay">
     <div class="overlay-inner">
       <h3>📊 학점 요약</h3>
-      <ul>
-        <li>누적 평균 학점: <strong>3.85 / 4.5</strong></li>
-        <li>전공 평균 학점: 3.92</li>
-        <li>교양 평균 학점: 3.78</li>
+      <ul id="gradesList">
+        <li>⏳ 불러오는 중...</li>
       </ul>
-      <button class="open-btn" onclick="window.location.href='feature.html?feature=grade'"> 자세히 보기</button>
+      <button class="open-btn" onclick="event.stopPropagation(); showGradeDetail()">자세히 보기</button>
     </div>
   </div>
 </div>
 
+<!-- ✅ 상세 성적 모달 -->
+<div id="gradeModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>📘 상세 성적 정보</h3>
+      <button class="close-btn" onclick="closeGradeModal()">✖</button>
+    </div>
+
+    <!-- 🔹 필터 영역 -->
+    <div class="filter-area">
+      <select id="yearSelectFilter"></select>
+      <select id="semesterSelectFilter">
+        <option value="">전체 학기</option>
+        <option value="1">1학기</option>
+        <option value="2">2학기</option>
+      </select>
+      <button class="filter-btn" onclick="filterGrades()">필터 적용</button>
+    </div>
+
+    <div id="gradeDetailBox"></div>
+  </div>
+</div>
+
+
+
 <!-- ✅ eClass -->
-<div class="tile">
+<div class="tile" id="eclassTile" onclick="openEclassTile()">
   <div class="ic">🖥️</div>
   <div class="txt">
     <div class="k">eClass</div>
-    <div class="s">과제</div>
+    <div class="s">과제 현황</div>
   </div>
 
   <div class="tile-overlay">
     <div class="overlay-inner">
-      <h3>🖥️ 과제 </h3>
-      <ul>
-        <li>[과제] AI 프로젝트 보고서 – 마감: 2025.10.07</li>
-        <li>[과제] 데이터 분석 중간 보고서 – 마감: 2025.10.10</li>
-        <li>[공지] 기말 프로젝트 발표 – 2025.12.01 예정</li>
+      <h3>🖥️ eClass 과제</h3>
+      <ul id="eclassTaskList">
+        <li>불러오는 중...</li>
       </ul>
-      <button class="open-btn" onclick="window.location.href='feature.html?feature=eclass'"> 자세히 보기</button>
+      <button class="open-btn" onclick="window.location.href='feature.html?feature=eclass'">
+        📋 전체 보기
+      </button>
     </div>
   </div>
 </div>
@@ -991,13 +1421,14 @@ body.dark .msg.bot.typing {
 
   <div class="tile-overlay">
     <div class="overlay-inner">
-      <h3>📢 공지사항</h3>
-      <ul>
-        <li>학교 공지사항</li>
-        <li>학과 공지사항</li>
-        <li>----------</li>
+      <h3>📢 최신 공지사항</h3>
+      <ul id="noticeList">
+        <li>불러오는 중...</li>
       </ul>
-      <button class="open-btn" onclick="window.location.href='feature.html?feature=library'"> 자세히 보기</button>
+      <button class="open-btn" onclick="window.location.href='feature.html?feature=notice'">
+        📋 전체 보기
+      </button>
+
     </div>
   </div>
 </div>
@@ -1013,19 +1444,33 @@ body.dark .msg.bot.typing {
   <div class="tile-overlay">
     <div class="overlay-inner">
       <h3>🎓 졸업 요건 진행 상황</h3>
-      <ul>
-        <li>전공 이수: 78 / 80 학점</li>
-        <li>교양 이수: 28 / 30 학점</li>
-        <li>총 이수: 125 / 130 학점</li>
+
+      <!-- 졸업 기준 -->
+      <div class="grad-requirements">
+        <p><strong>📘 졸업 기준</strong></p>
+        <ul>
+          <li>총 이수 학점: <b>110학점</b> 이상</li>
+          <li>전공 학점: <b>78학점</b> 이상</li>
+          <li>교양 학점: <b>12학점</b> 이상</li>
+        </ul>
+      </div>
+
+      <!-- 학점 현황 -->
+      <ul id="graduationList">
+        <li>⏳ 불러오는 중...</li>
       </ul>
-      <button class="open-btn" onclick="window.location.href='feature.html?feature=graduate'"> 자세히 보기</button>
+
+      <!-- ✅ 달성 여부 -->
+      <div id="graduationStatus" class="grad-check">
+        <p>기준 달성 여부 확인 중...</p>
+      </div>
+
     </div>
   </div>
 </div>
 
 </section>
 
-    
       <!-- ⚙️ 설정 패널 (처음엔 숨김 상태) -->
       <div class="settings-overlay" id="settingsOverlay">
   <div class="settings-panel">
@@ -1079,7 +1524,7 @@ body.dark .msg.bot.typing {
 </section>
 
 
-  </main>
+
   <!-- 💬 채팅 말풍선 박스 -->
 <div class="chat-box" id="chatBox"></div>
 
@@ -1099,9 +1544,11 @@ body.dark .msg.bot.typing {
           </div>
         </div>
       </div>
+
+
+</main>
   <!-- 모바일 오버레이 딤 -->
   <div class="sb-dim"></div>
-  
 <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js" crossorigin="anonymous"></script>
 <script>
 // ========================= 기본 상수 =========================
@@ -1141,102 +1588,43 @@ function appendUserMessage(text) {
   scrollChatToBottom();
 }
 
-// 봇 말풍선
-function appendBotMessage(text) {
-  const box = document.getElementById("chatBox");
-  const msg = document.createElement("div");
-  msg.className = "msg bot";
-
-  msg.innerHTML = `
-    <div class="text">${escapeHTML(text)}</div>
-    <button class="tts-btn" style="margin-left:8px;border:none;background:transparent;cursor:pointer" title="읽어주기">🔊</button>
-  `;
-  // TTS 버튼 핸들러
-  const btn = msg.querySelector(".tts-btn");
-  btn.addEventListener("click", () => playTTS(text));
-
-  box.appendChild(msg);
-  scrollChatToBottom();
-}
-/* ======= 한글 조립 유틸 ======= */
-const Hangul = {
-  disassemble: function(str) {
-    const CHO = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
-    const JUNG = ["ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ"];
-    const JONG = ["","ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ","ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
-    let result = [];
-    for (let ch of str) {
-      const code = ch.charCodeAt(0) - 0xac00;
-      if (code >= 0 && code <= 11171) {
-        const cho = Math.floor(code / 588);
-        const jung = Math.floor((code - cho * 588) / 28);
-        const jong = code % 28;
-        result.push(CHO[cho], JUNG[jung]);
-        if (JONG[jong] !== "") result.push(JONG[jong]);
-      } else {
-        result.push(ch);
-      }
-    }
-    return result;
-  },
-  assemble: function(arr) {
-    const CHO = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
-    const JUNG = ["ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ"];
-    const JONG = ["","ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ","ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
-
-    let result = "";
-    let cho, jung, jong;
-    function flush() {
-      if (cho !== undefined && jung !== undefined) {
-        const choIdx = CHO.indexOf(cho);
-        const jungIdx = JUNG.indexOf(jung);
-        const jongIdx = JONG.indexOf(jong || "");
-        result += String.fromCharCode(0xac00 + choIdx * 588 + jungIdx * 28 + jongIdx);
-      } else if (cho) result += cho;
-      else if (jung) result += jung;
-      cho = jung = jong = undefined;
-    }
-
-    for (let c of arr) {
-      if (CHO.includes(c)) {
-        if (cho && jung) flush();
-        cho = c;
-      } else if (JUNG.includes(c)) {
-        if (!cho) cho = "ㅇ"; // 초성 없을 때 자동 ㅇ
-        jung = c;
-      } else if (JONG.includes(c)) {
-        if (cho && jung && !jong) jong = c;
-        else { flush(); cho = c; }
-      } else {
-        flush(); result += c;
-      }
-    }
-    flush();
-    return result;
-  }
-};
-async function typeHangul(target, text, speed = 70) {
-  const chars = Hangul.disassemble(text);
-  let partial = [];
-  for (let i = 0; i < chars.length; i++) {
-    partial.push(chars[i]);
-    target.innerText = Hangul.assemble(partial);
-    await new Promise(r => setTimeout(r, speed));
-  }
-  target.innerText = text; // 완성형으로 마무리
-}
-
-/* ======= 봇 메시지 생성 ======= */
+/* ======= 개선된 봇 타이핑 메시지 생성 ======= */
 async function appendBotMessage(text) {
   const chatBox = document.getElementById("chatBox");
+  
+  // 중복 실행 방지
+  if (window.isTyping) return;
+  window.isTyping = true;
+
   const bubble = document.createElement("div");
   bubble.className = "msg bot typing";
-  chatBox.appendChild(bubble);
+
+  // 텍스트 영역
+  const textEl = document.createElement("div");
+  textEl.className = "text";
+  bubble.appendChild(textEl);
+  chatBox.appendChild(풍선껌);
   chatBox.scrollTop = chatBox.scrollHeight;
 
-  await typeHangul(bubble, text);
+  // 완성형 단위 타이핑 효과
+  const chars = Array.from(text);
+  for (let i = 0; i < chars.length; i++) {
+    textEl.innerText = chars.slice(0, i + 1).join("");
+    await new Promise(r => setTimeout(r, 60)); // 타이핑 속도 (조절 가능)
+  }
+
+  // 타이핑 끝난 뒤 twemoji 적용
+  if (window.twemoji) {
+    textEl.innerHTML = twemoji.parse(textEl.innerText, { folder: 'svg', ext: '.svg' });
+  }
+
   bubble.classList.remove("typing");
+  chatBox.scrollTop = chatBox.scrollHeight;
+
+  // 타이핑 완료 후 중복 실행 가능 상태로 복귀
+  setTimeout(() => { window.isTyping = false; }, 300);
 }
+
 /* ======= 사용자 입력 처리 ======= */
 document.querySelector(".send").addEventListener("click", () => {
   const input = document.getElementById("ask");
@@ -1769,6 +2157,448 @@ function showDashboard() {
   document.getElementById("personal-section").style.display = "none";
   document.getElementById("dashboardView").style.display = "block";
 }
+// ✅ 공통 함수: 모든 주요 섹션 숨기기
+function hideAllMainSections() {
+  const sections = [
+    "dashboardView",
+    "recentLogsView",
+    "logsDetailView",
+    "personal-section"
+  ];
+  sections.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  });
+}
+
+/* ========================= 지난 7일 ========================= */
+function openRecentLogs() {
+  hideAllMainSections(); // ✅ 다른 섹션 숨기기
+  document.getElementById("recentLogsView").style.display = "block";
+  loadRecentLogs();
+}
+
+/* ========================= 개인 정보 ========================= */
+async function showPersonalInfo() {
+  hideAllMainSections(); // ✅ 다른 섹션 숨기기
+
+  // API 호출
+  const res = await fetch(`${API_BASE}/api/me`, { credentials: "include" });
+  const data = await res.json();
+  if (!data.ok) return alert("로그인이 필요합니다");
+
+  const u = data.user;
+  document.getElementById('p-name').textContent = u.name;
+  document.getElementById('p-student').textContent = u.uid;
+  document.getElementById('p-dept').textContent = u.department;
+  document.getElementById('p-role').textContent = u.role;
+  document.getElementById('p-email').textContent = u.email;
+
+  document.getElementById("personal-section").style.display = "block";
+}
+
+/* ========================= 대시보드로 돌아가기 ========================= */
+function showDashboard() {
+  hideAllMainSections(); // ✅ 나머지 숨기고
+  document.getElementById("dashboardView").style.display = "block";
+}
+
+/* ========================= 로그 상세보기 ========================= */
+function openLogDetail(date) {
+  hideAllMainSections(); // ✅ 나머지 숨기기
+  document.getElementById("logsDetailView").style.display = "block";
+  document.getElementById("logsTitle").innerText = date;
+
+  fetch(`/api/chat/logs/detail?date=${date}`, { credentials:"include" })
+    .then(res => res.json())
+    .then(data => {
+      const box = document.getElementById("logsDetail");
+      box.innerHTML = data.logs.map(log => {
+        const icon = log.speaker === "user" ? "👩‍💻" : "🤖";
+        return `
+          <div class="msg-line ${log.speaker}">
+            <span class="icon">${icon}</span>
+            <span class="msg">${escapeHTML(log.message)}</span>
+          </div>
+        `;
+      }).join("");
+    });
+}
+
+/* ========================= 로그 목록으로 돌아가기 ========================= */
+function showRecentLogs() {
+  hideAllMainSections();
+  document.getElementById("recentLogsView").style.display = "block";
+}
+
+// ===== 수업 시간표 =====
+async function loadTimetable() {
+  const year = document.getElementById("yearSelect").value;
+  const semester = document.getElementById("semesterSelect").value;
+  const box = document.getElementById("timetableContainer");
+
+  box.innerHTML = `
+    <div class="loader">
+      <div class="spinner"></div>
+      <p>시간표 불러오는 중...</p>
+    </div>
+  `;
+  box.style.display = "block";
+  box.style.opacity = "1";
+
+  try {
+    const res = await fetch(`/api/timetable?year=${year}&semester=${semester}`);
+    const data = await res.json();
+    if (!data.ok || !data.timetable?.length) {
+      box.innerHTML = "<p>등록된 시간표가 없습니다.</p>";
+      return;
+    }
+
+    const days = ["월", "화", "수", "목", "금"];
+    const table = Array.from({ length: 5 }, () => Array(9).fill(""));
+
+    data.timetable.forEach(t => {
+      if (!t.schedule || typeof t.schedule !== "string") return;
+      const match = t.schedule.match(/([월화수목금])([0-9]+)-?([0-9]*)/);
+      if (!match) return;
+
+      const d = days.indexOf(match[1]);
+      const start = parseInt(match[2]);
+      const end = match[3] ? parseInt(match[3]) : start;
+
+      for (let i = start; i <= end; i++) {
+        table[d][i - 1] = `
+          <div class="cell-subject">${t.subject || "-"}</div>
+          <div class="cell-room">${t.classroom || ""}</div>
+        `;
+      }
+    });
+
+    const times = [
+      "08:00~08:50","09:00~09:50","10:00~10:50","11:00~11:50",
+      "12:00~12:50","13:00~13:50","14:00~14:50","15:00~15:50","16:00~16:50"
+    ];
+
+    let html = `
+      <table class="timetable">
+        <thead>
+          <tr><th>교시</th>${days.map(d => `<th>${d}</th>`).join("")}</tr>
+        </thead>
+        <tbody>
+          ${Array.from({ length: 9 }, (_, i) => `
+            <tr>
+              <td>${i + 1}<br><span class="time-text">${times[i]}</span></td>
+              ${days.map((_, d) => `<td>${table[d][i] || ""}</td>`).join("")}
+            </tr>`).join("")}
+        </tbody>
+      </table>
+    `;
+
+    box.style.opacity = "0";
+    box.innerHTML = html;
+    setTimeout(() => (box.style.opacity = "1"), 100);
+  } catch (err) {
+    console.error("[loadTimetable ERROR]", err);
+    box.innerHTML = "<p>시간표를 불러오는 중 오류가 발생했습니다.</p>";
+  }
+}
+
+// 학년도 자동 채우기
+(function initYearSelect() {
+  const select = document.getElementById("yearSelect");
+  const thisYear = new Date().getFullYear();
+ for (let y = thisYear - 2; y <= thisYear; y++) {
+    const opt = document.createElement("option");
+    opt.value = y;
+    opt.textContent = `${y}년`;
+    if (y === thisYear) opt.selected = true;
+    select.appendChild(opt);
+  }
+})();
+
+// ✅ 학년도/학기 변경 시 시간표 갱신
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("yearSelect").addEventListener("change", loadTimetable);
+  document.getElementById("semesterSelect").addEventListener("change", loadTimetable);
+
+  // ✅ 오버레이 닫힘 방지 (핵심)
+  document.querySelectorAll("#yearSelect, #semesterSelect").forEach(sel => {
+    sel.addEventListener("click", e => e.stopPropagation());
+  });
+
+  // ✅ 첫 로드 시 자동 로딩
+  loadTimetable();
+});
+
+
+// ===== 학점 조회 =====
+async function loadGradesSummary() {
+  try {
+    const res = await fetch("/api/grades");
+    const data = await res.json();
+    const list = document.getElementById("gradesList");
+
+    if (!data.ok || !data.grades?.length) {
+      list.innerHTML = "<li>성적 정보가 없습니다.</li>";
+      return;
+    }
+
+    const total = data.total_credit ?? 0;
+    const avg = (data.grades.reduce((a, b) => a + (b.grade ? parseFloat(b.grade) : 0), 0) / data.grades.length).toFixed(2);
+
+    list.innerHTML = `
+      <li>총 이수 학점: ${total}</li>
+      <li>평균 학점: ${avg}</li>
+      <li>과목 수: ${data.grades.length}</li>
+    `;
+  } catch (err) {
+    console.error(err);
+    document.getElementById("gradesList").innerHTML = "<li>불러오기 실패</li>";
+  }
+}
+
+// ========================= 학점 상세 보기 =========================
+let allGradesData = []; // 전체 데이터를 전역 저장용
+
+// ✅ 성적 상세 보기 (모달 열기)
+async function showGradeDetail() {
+  try {
+    const res = await fetch("/api/grades");
+    const data = await res.json();
+    const box = document.getElementById("gradeDetailBox");
+    const modal = document.getElementById("gradeModal");
+
+    if (!data.ok || !data.grades.length) {
+      box.innerHTML = "<p>성적 상세 정보가 없습니다.</p>";
+      modal.style.display = "flex";
+      return;
+    }
+
+    allGradesData = data.grades; // 원본 저장
+
+    renderGradesTable(allGradesData); // 표 렌더링
+    populateYearFilter(allGradesData); // 필터 드롭다운 채우기
+
+    modal.style.display = "flex";
+  } catch (err) {
+    console.error("[ERROR] showGradeDetail:", err);
+    document.getElementById("gradeDetailBox").innerHTML =
+      "<p>성적 정보를 불러오는 중 오류가 발생했습니다.</p>";
+  }
+}
+
+// ✅ 필터용 연도 목록 채우기
+function populateYearFilter(grades) {
+  const yearSelect = document.getElementById("yearSelectFilter");
+  const years = [...new Set(grades.map(g => g.year))].sort((a, b) => b - a);
+
+  yearSelect.innerHTML = `<option value="">전체 연도</option>`;
+  years.forEach(y => {
+    const opt = document.createElement("option");
+    opt.value = y;
+    opt.textContent = `${y}학년도`;
+    yearSelect.appendChild(opt);
+  });
+}
+
+// ✅ 필터 적용
+function filterGrades() {
+  const year = document.getElementById("yearSelectFilter").value;
+  const sem = document.getElementById("semesterSelectFilter").value;
+
+  let filtered = [...allGradesData];
+  if (year) filtered = filtered.filter(g => g.year == year);
+  if (sem) filtered = filtered.filter(g => g.semester == sem);
+
+  renderGradesTable(filtered);
+}
+
+// ✅ 표 렌더링 함수
+function renderGradesTable(list) {
+  const box = document.getElementById("gradeDetailBox");
+  if (!list.length) {
+    box.innerHTML = "<p>해당 조건에 맞는 성적이 없습니다.</p>";
+    return;
+  }
+
+  const rows = list.map(d => `
+    <tr>
+      <td>${d.year}학년도 ${d.semester}학기</td>
+      <td>${d.subject}</td>
+      <td>${d.professor || "-"}</td>
+      <td>${d.credit}</td>
+      <td>${d.grade || "-"}</td>
+    </tr>
+  `).join("");
+
+  box.innerHTML = `
+    <table class="grade-table">
+      <thead>
+        <tr><th>학기</th><th>과목명</th><th>교수명</th><th>학점</th><th>성적</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+// ✅ 모달 닫기
+function closeGradeModal() {
+  const modal = document.getElementById("gradeModal");
+  modal.style.animation = "fadeIn 0.3s reverse";
+  setTimeout(() => (modal.style.display = "none"), 200);
+}
+
+// ✅ 모달 외부 클릭 시 닫기
+window.addEventListener("click", (e) => {
+  const modal = document.getElementById("gradeModal");
+  if (e.target === modal) closeGradeModal();
+});
+
+// ===== 졸업 이수 =====
+async function loadGraduationSummary() {
+  try {
+    const res = await fetch("/api/graduation");
+    const data = await res.json();
+    const list = document.getElementById("graduationList");
+    const status = document.getElementById("graduationStatus");
+
+    if (!data.ok || !data.graduation) {
+      list.innerHTML = "<li>졸업 정보가 없습니다.</li>";
+      status.innerHTML = "<p>❌ 졸업 요건 정보를 불러오지 못했습니다.</p>";
+      return;
+    }
+
+    const g = data.graduation;
+
+    // 현재 이수 상태
+    list.innerHTML = `
+      <li>전필: ${g.major_required ?? 0} 학점</li>
+      <li>전선: ${g.major_elective ?? 0} 학점</li>
+      <li>교양: ${g.general ?? 0} 학점</li>
+      <li>총 이수: ${g.total_credit ?? 0} 학점</li>
+    `;
+
+    // ✅ 달성 여부 계산
+    const ok_major = (g.major_required + g.major_elective) >= 78;
+    const ok_general = g.general >= 12;
+    const ok_total = g.total_credit >= 110;
+
+    // ✅ 결과 표시
+    status.innerHTML = `
+      <p>${ok_major ? "✅" : "❌"} 전공 요건 ${ok_major ? "<span class='ok'>충족</span>" : "<span class='no'>미달</span>"}</p>
+      <p>${ok_general ? "✅" : "❌"} 교양 요건 ${ok_general ? "<span class='ok'>충족</span>" : "<span class='no'>미달</span>"}</p>
+      <p>${ok_total ? "✅" : "❌"} 총 이수 학점 ${ok_total ? "<span class='ok'>충족</span>" : "<span class='no'>미달</span>"}</p>
+    `;
+  } catch (err) {
+    console.error(err);
+    document.getElementById("graduationList").innerHTML = "<li>불러오기 실패</li>";
+  }
+}
+// ===== 공지사항 =====
+async function loadNotices() {
+  const box = document.getElementById("noticeList");
+  box.innerHTML = "<li>불러오는 중...</li>";
+
+  try {
+    const res = await fetch("/api/notices");
+    const data = await res.json();
+
+    if (!data.ok || !data.notices.length) {
+      box.innerHTML = "<li>공지사항이 없습니다.</li>";
+      return;
+    }
+
+    box.innerHTML = data.notices.map(n => `
+      <li>
+        <a href="${n.url}" target="_blank">${n.title}</a>
+        <span class="date">${n.date}</span>
+        ${n.badge ? `<span class="badge">${n.badge}</span>` : ""}
+      </li>
+    `).join("");
+  } catch (err) {
+    box.innerHTML = "<li>불러오기 실패</li>";
+  }
+}
+document.addEventListener("DOMContentLoaded", loadNotices);
+
+// 🔹 eClass 카드 클릭 시 실행
+async function openEclassTile() {
+  const box = document.getElementById("eclassTaskList");
+  box.innerHTML = "<li>불러오는 중...</li>";
+
+  try {
+    // ✅ 마감 임박 과제 3개만 표시
+    const res = await fetch(`${API_BASE}/api/assignments/due_soon`);
+    const data = await res.json();
+
+    if (!data.length) {
+      box.innerHTML = "<li>📂 등록된 과제가 없습니다.</li>";
+      return;
+    }
+
+    // ✅ 최대 3개만 표시
+    const top3 = data.slice(0, 3);
+
+    box.innerHTML = top3.map(a => {
+      // 날짜 포맷팅
+      const date = a.due_date ? a.due_date.split("T")[0].replace(/-/g, ".") : "—";
+      // D-Day 계산
+      const today = new Date();
+      const due = new Date(a.due_date);
+      const diff = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+      let badge = diff <= 0 ? "🔥 D-DAY" : diff === 1 ? "⏰ D-1" : `D-${diff}`;
+      if (diff < 0) badge = "❌ 마감";
+
+      return `
+        <li>
+          [${a.subject_name}] ${a.title} 
+          – 마감: ${date} 
+          <span style="float:right; color:#f87171; font-weight:600;">${badge}</span>
+        </li>`;
+    }).join("");
+
+  } catch (err) {
+    box.innerHTML = "<li>❌ 불러오기 실패</li>";
+  }
+}
+// ===== 자격증 안내 =====
+async function loadCertNotices() {
+  const box = document.getElementById("certNoticeContainer");
+  box.innerHTML = `<p>⏳ 자격증 관련 공지를 불러오는 중...</p>`;
+
+  try {
+    const res = await fetch("/api/certificates");
+    const data = await res.json();
+
+    if (!data.ok || !data.certificates?.length) {
+      box.innerHTML = `<p>📭 자격증 관련 공지가 없습니다.</p>`;
+      return;
+    }
+
+    box.innerHTML = `
+      <ul class="notice-list">
+        ${data.certificates.map(n => `
+          <li>
+            <a href="${n.url}" target="_blank">${n.title}</a>
+            <span class="date">${n.date || ""}</span>
+            ${n.badge ? `<span class="badge">${n.badge}</span>` : ""}
+          </li>
+        `).join("")}
+      </ul>
+    `;
+  } catch (err) {
+    console.error("자격증 공지 불러오기 오류:", err);
+    box.innerHTML = `<p>❌ 데이터를 불러오지 못했습니다.</p>`;
+  }
+}
+
+// ===== 페이지 로드시 자동 실행 =====
+window.addEventListener("DOMContentLoaded", () => {
+  loadTimetable();          
+  loadGradesSummary();
+  loadGraduationSummary();
+  loadCertNotices();      // ✅ 이 한 줄 추가
+});
 
 </script>
 

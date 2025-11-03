@@ -1,15 +1,21 @@
 # ==========================================================
-# app.py (Flask + MySQL + FastAPI RAG/STT/TTS 프록시 통합)
+# app.py (Flask + MySQL + FastAPI RAG/STT/TTS 프록시 통합 + ChatLog 저장) - FINAL
 # ==========================================================
 import os
 from pathlib import Path
-from datetime import timedelta
+from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 from flask import Flask, jsonify, request, send_from_directory, session
 from flask_cors import CORS
 import mysql.connector
 from dotenv import load_dotenv
 import bcrypt
 import requests
+from dotenv import load_dotenv
+import os
+
+load_dotenv()  # ✅ .env 파일 읽기
+
 
 # ----------------------------
 # 1) 환경 변수 로드 (.env)
@@ -41,7 +47,14 @@ app = Flask(__name__, static_folder="image", static_url_path="/image")
 app.secret_key = SECRET_KEY
 app.permanent_session_lifetime = timedelta(days=7)
 
-CORS(app, supports_credentials=True, resources={r"/*": {"origins": CORS_ORIGINS or ["*"]}})
+# 한글 응답 깨짐 방지
+app.config["JSON_AS_ASCII"] = False
+
+CORS(
+    app,
+    supports_credentials=True,
+    resources={r"/*": {"origins": CORS_ORIGINS or ["*"]}},
+)
 
 # ----------------------------
 # 3) MySQL 연결
@@ -67,22 +80,49 @@ def init_db():
 
     conn = get_raw_conn(database=DB_NAME)
     cur = conn.cursor()
+
+    # users
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      uid VARCHAR(64) UNIQUE NOT NULL,
-      role VARCHAR(20) NOT NULL,
-      name VARCHAR(100) NOT NULL,
-      department VARCHAR(100) NOT NULL,
-      email VARCHAR(150) NOT NULL,
-      password_hash VARCHAR(200) NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        CREATE TABLE IF NOT EXISTS users (
+          id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          uid VARCHAR(64) UNIQUE NOT NULL,
+          role VARCHAR(20) NOT NULL,
+          name VARCHAR(100) NOT NULL,
+          department VARCHAR(100) NOT NULL,
+          email VARCHAR(150) NOT NULL,
+          password_hash VARCHAR(200) NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """)
+
+    # chat_logs
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS chat_logs (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          uid VARCHAR(64) NOT NULL,
+          speaker ENUM('USER','BOT') NOT NULL,
+          message TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+
+    # ✅ assignments (eClass 과제 테이블)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS assignments (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          subject_name VARCHAR(100) NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          due_date DATETIME,
+          status VARCHAR(20),
+          score VARCHAR(20),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+
     conn.commit()
     cur.close()
     conn.close()
-    print("[INIT_DB] ✅ OK")
+    print("[INIT_DB] ✅ OK (users + chat_logs + assignments)")
 
 # ----------------------------
 # 4) 유틸
@@ -93,8 +133,29 @@ def hash_pw(plain: str) -> str:
 def check_pw(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
+def save_chat(uid: str, speaker: str, message: str):
+    """대화 로그 저장 (예외는 콘솔 경고만)"""
+    try:
+        if not (uid and message and speaker in ("USER", "BOT")):
+            return
+        conn = get_raw_conn(database=DB_NAME)
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO chat_logs(uid, speaker, message) VALUES(%s,%s,%s)",
+            (uid, speaker, message[:5000]),
+        )
+        conn.commit()
+    except Exception as e:
+        print("[WARN] save_chat failed:", e)
+    finally:
+        try:
+            cur.close()
+            conn.close()
+        except:
+            pass
+
 # ----------------------------
-# 5) 회원가입 / 로그인 API
+# 5) 회원가입 / 로그인 / 로그아웃 API
 # ----------------------------
 @app.post("/api/signup")
 def signup():
@@ -135,92 +196,650 @@ def login():
 
     conn = get_raw_conn(database=DB_NAME)
     cur = conn.cursor(dictionary=True)
+
+    # 1️⃣ users 테이블 먼저 조회
     cur.execute("SELECT * FROM users WHERE uid=%s", (uid,))
-    row = cur.fetchone()
+    user = cur.fetchone()
+
+    # 2️⃣ users에 없으면 student 테이블에서 조회
+    if not user:
+        cur.execute("""
+            SELECT student_id AS uid, name, department, grade, status, pw AS plain_pw
+            FROM student WHERE student_id=%s
+        """, (uid,))
+        student = cur.fetchone()
+
+        if student:
+            # student 테이블의 경우 pw는 평문
+            if pw == student["plain_pw"]:
+                session.update({
+                    "uid": student["uid"],
+                    "name": student["name"],
+                    "department": student["department"],
+                    "grade": student["grade"],
+                    "status": student["status"],
+                    "role": "student"
+                })
+                return jsonify(ok=True, user=session)
+            else:
+                return jsonify(ok=False, msg="비밀번호가 틀렸습니다."), 401
+        else:
+            return jsonify(ok=False, msg="존재하지 않는 사용자입니다."), 404
+
+    # 3️⃣ users 로그인(bcrypt 해시 비교)
+    import bcrypt
+    if not bcrypt.checkpw(pw.encode('utf-8'), user["password_hash"].encode('utf-8')):
+        return jsonify(ok=False, msg="비밀번호가 틀렸습니다."), 401
+
+    session.update({
+        "uid": user["uid"],
+        "name": user["name"],
+        "role": user["role"],
+        "department": user["department"]
+    })
+
     cur.close()
     conn.close()
+    return jsonify(ok=True, user=user)
 
-    if not row or not check_pw(pw, row["password_hash"]):
-        return jsonify(ok=False, msg="아이디 또는 비밀번호 오류"), 401
-
-    session.update(
-        uid=row["uid"],
-        name=row["name"],
-        role=row["role"],
-        department=row["department"],
-    )
-    return jsonify(ok=True, user=row)
+@app.post("/api/logout")
+def logout():
+    session.clear()
+    return jsonify(ok=True)
 
 @app.get("/api/me")
 def me():
     if "uid" not in session:
         return jsonify(ok=False, msg="로그인 필요"), 401
-    return jsonify(ok=True, user={
-        "uid": session.get("uid"),
-        "name": session.get("name"),
-        "role": session.get("role"),
-        "department": session.get("department")
-    })
-
+    return jsonify(
+        ok=True,
+        user={
+            "uid": session.get("uid"),
+            "name": session.get("name"),
+            "role": session.get("role"),
+            "department": session.get("department"),
+        },
+    )
 
 # ----------------------------
-# 6) Flask → FastAPI 프록시
+# 6) Flask → FastAPI 프록시 + 로그 저장
 # ----------------------------
 @app.post("/chat")
 def proxy_chat():
-    """main.html → FastAPI RAG 질의응답"""
-    payload = request.get_json() or {}
-    # ✅ FastAPI가 요구하는 키로 맞춰줌
+    """프론트에서 /chat 로 주면 FastAPI(/rag/chat)로 포워딩 + 대화 저장"""
+    payload = request.get_json(silent=True) or {}
     if "text" in payload:
-        payload = {"query": payload["text"]}
+        payload = {"query": (payload.get("text") or "").strip()}
+
+    user_text = (payload.get("query") or "").strip()
+    uid = session.get("uid", "guest")
+
+    # 사용자 입력 저장
+    if user_text:
+        save_chat(uid, "USER", user_text)
+
     try:
         res = requests.post(f"{FASTAPI_BASE}/rag/chat", json=payload, timeout=60)
-        return jsonify(res.json()), res.status_code
+        data = res.json()
+        bot_answer = (data.get("answer") or "").strip()
+        # 봇 답변 저장
+        if bot_answer:
+            save_chat(uid, "BOT", bot_answer)
+        return jsonify(data), res.status_code
     except Exception as e:
         return jsonify(ok=False, msg=f"RAG 서버 연결 실패: {e}"), 500
 
-@app.post("/rag/ingest")
-def proxy_rag_ingest():
-    try:
-        res = requests.post(f"{FASTAPI_BASE}/rag/ingest", json={}, timeout=120)
-        return jsonify(res.json()), res.status_code
-    except Exception as e:
-        return jsonify(ok=False, msg=f"RAG 인덱싱 실패: {e}"), 500
+# ----------------------------
+# 7) 대화 로그 조회 API (지난 7일 목록 / 특정일 상세)
+# ----------------------------
+@app.get("/api/chat/logs/7days")
+def api_logs_7days():
+    if "uid" not in session:
+        return jsonify(ok=False, msg="로그인 필요"), 401
+    uid = session["uid"]
+    print("[DEBUG] current uid:", session.get("uid"))
+    conn = get_raw_conn(database=DB_NAME)
+    cur = conn.cursor(dictionary=True)
 
-@app.post("/tts")
-def proxy_tts():
-    payload = request.get_json() or {}
     try:
-        res = requests.post(f"{FASTAPI_BASE}/tts", json=payload, timeout=30)
-        return jsonify(res.json()), res.status_code
-    except Exception as e:
-        return jsonify(ok=False, msg=f"TTS 연결 실패: {e}"), 500
+        # 날짜별 로그 개수
+        cur.execute(
+            """
+            SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS day,
+                   COUNT(*) AS count
+            FROM chat_logs
+            WHERE uid=%s
+              AND created_at >= NOW() - INTERVAL 7 DAY
+            GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
+            ORDER BY day DESC
+            """,
+            (uid,),
+        )
+        rows = cur.fetchall()
 
-@app.post("/voice-chat")
-def proxy_voice():
-    try:
-        files = {"file": request.files["file"]}
-        res = requests.post(f"{FASTAPI_BASE}/voice-chat", files=files, timeout=60)
-        return jsonify(res.json()), res.status_code
+        # 각 날짜의 가장 최근 USER 메시지
+        for r in rows:
+            cur.execute(
+                """
+                SELECT message
+                FROM chat_logs
+                WHERE uid=%s
+                  AND speaker='user'
+                  AND DATE_FORMAT(created_at, '%Y-%m-%d')=%s
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (uid, r["day"]),
+            )
+            msg_row = cur.fetchone()
+            r["last_user_msg"] = msg_row["message"] if msg_row else None
+
+        return jsonify(ok=True, days=rows)
+
     except Exception as e:
-        return jsonify(ok=False, msg=f"Voice 연결 실패: {e}"), 500
+        print("[ERROR] api_logs_7days:", e)
+        return jsonify(ok=False, msg=str(e)), 500
+
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.get("/api/chat/logs/detail")
+def api_logs_detail():
+    if "uid" not in session:
+        return jsonify(ok=False, msg="로그인 필요"), 401
+    uid = session["uid"]
+    date_str = (request.args.get("date") or "").strip()
+
+    try:
+        datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        return jsonify(ok=False, msg="잘못된 날짜 형식(YYYY-MM-DD)"), 400
+
+    conn = get_raw_conn(database=DB_NAME)
+    cur = conn.cursor(dictionary=True)
+    cur.execute(
+        """
+        SELECT speaker, message, created_at
+        FROM chat_logs
+        WHERE uid=%s AND DATE(created_at)=%s
+        ORDER BY created_at ASC, id ASC
+        """,
+        (uid, date_str),
+    )
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return jsonify(ok=True, logs=rows, date=date_str)
+
+## ----------------------------
+# 7-B) 학교 데이터 API (수업시간표 / 학점조회 / 졸업이수)
+# ----------------------------
+@app.route("/api/timetable")
+def api_timetable():
+    student_id = request.args.get("student_id") or session.get("uid") or session.get("student_id")
+    if not student_id:
+        return jsonify({"ok": False, "error": "로그인이 필요합니다."})
+
+    conn = get_raw_conn(database=DB_NAME)
+    cur = conn.cursor(dictionary=True)
+
+    # URL 파라미터
+    year = request.args.get("year")
+    semester = request.args.get("semester")
+
+    print(f"[DEBUG] timetable 요청: year={year}, semester={semester}, student_id={student_id}")
+
+    try:
+        if not (year and semester):
+            cur.execute("""
+                SELECT MAX(year) AS year, MAX(semester) AS semester
+                FROM student_class
+                WHERE student_id = %s
+            """, (student_id,))
+            info = cur.fetchone()
+            if not info or not info["year"]:
+                return jsonify({"ok": False, "timetable": []})
+            year, semester = info["year"], info["semester"]
+
+        # ✅ 핵심 수정: sc.schedule 사용
+        cur.execute("""
+            SELECT 
+                c.subject,
+                c.professor,
+                c.classroom,
+                sc.schedule,
+                sc.grade
+            FROM student_class sc
+            JOIN class c ON sc.class_id = c.id
+            WHERE sc.student_id = %s
+              AND sc.year = %s
+              AND sc.semester = %s
+            ORDER BY sc.schedule
+        """, (student_id, year, semester))
+
+        rows = cur.fetchall() or []
+        return jsonify({
+            "ok": True,
+            "year": year,
+            "semester": semester,
+            "timetable": rows
+        })
+
+    except Exception as e:
+        print("[ERROR /api/timetable]", e)
+        return jsonify(ok=False, msg=str(e)), 500
+    finally:
+        cur.close()
+        conn.close()
+
+@app.get("/api/grades")
+def api_grades():
+    """학생별 성적 요약 (진로지도 제외 + 학점/평균 정확히 계산)"""
+    student_id = session.get("uid")
+    if not student_id:
+        return jsonify(ok=False, msg="로그인 필요"), 401
+
+    conn = get_raw_conn(database=DB_NAME)
+    cur = conn.cursor(dictionary=True)
+
+    try:
+        # 중복 제거된 성적 목록
+        cur.execute("""
+            SELECT 
+                c.subject,
+                ANY_VALUE(c.professor) AS professor,
+                ANY_VALUE(c.credit) AS credit,
+                ANY_VALUE(sc.grade) AS grade,
+                sc.year,
+                sc.semester
+            FROM student_class sc
+            JOIN class c ON sc.class_id = c.id
+            WHERE sc.student_id = %s
+              AND c.subject NOT LIKE '%%진로지도%%'
+            GROUP BY c.subject, sc.year, sc.semester
+            ORDER BY sc.year DESC, sc.semester DESC
+        """, (student_id,))
+        rows = cur.fetchall()
+
+        # 🔹 총 학점 (진로지도 제외)
+        cur.execute("""
+            SELECT SUM(c.credit) AS total_credit
+            FROM (
+                SELECT DISTINCT sc.class_id
+                FROM student_class sc
+                WHERE sc.student_id = %s
+            ) AS uniq
+            JOIN class c ON uniq.class_id = c.id
+            WHERE c.subject NOT LIKE '%%진로지도%%';
+        """, (student_id,))
+        total_credit_row = cur.fetchone()
+        total_credit = float(total_credit_row["total_credit"] or 0)
+
+        grade_map = {
+            "A+": 4.5, "A": 4.0, "B+": 3.5, "B": 3.0,
+            "C+": 2.5, "C": 2.0, "D+": 1.5, "D": 1.0, "F": 0
+        }
+
+        total_grade_point = 0.0
+        subject_count = 0
+
+        for r in rows:
+            g = r["grade"]
+            if isinstance(g, str):
+                g = grade_map.get(g.strip().upper(), None)
+            elif isinstance(g, (float, int)):
+                g = float(g)
+            else:
+                g = None
+
+            if g is not None:
+                credit = float(r["credit"] or 0)
+                total_grade_point += g * credit
+                subject_count += 1
+
+        avg_grade = round(total_grade_point / total_credit, 2) if total_credit else 0
+
+        return jsonify(
+            ok=True,
+            grades=rows,
+            total_credit=total_credit,
+            avg_grade=avg_grade,
+            subject_count=subject_count
+        )
+
+    except Exception as e:
+        print("[ERROR] /api/grades:", e)
+        return jsonify(ok=False, msg=str(e)), 500
+    finally:
+        cur.close()
+        conn.close()
+
+@app.get("/api/grades/detail")
+def api_grades_detail():
+    """학기별 과목별 성적 상세 조회 (진로지도 제외 + 중복 제거)"""
+    student_id = session.get("uid")
+    if not student_id:
+        return jsonify(ok=False, msg="로그인 필요"), 401
+
+    conn = get_raw_conn(database=DB_NAME)
+    cur = conn.cursor(dictionary=True)
+
+    try:
+        # 진로지도 제외 + 중복 제거 + 학기순 정렬
+        cur.execute("""
+            SELECT 
+                c.subject AS subject,
+                ANY_VALUE(c.professor) AS professor,
+                ANY_VALUE(c.credit) AS credit,
+                ANY_VALUE(sc.grade) AS grade,
+                sc.year,
+                sc.semester
+            FROM student_class sc
+            JOIN class c ON sc.class_id = c.id
+            WHERE sc.student_id = %s
+              AND c.subject NOT LIKE '%%진로지도%%'
+            GROUP BY c.subject, sc.year, sc.semester
+            ORDER BY sc.year DESC, sc.semester DESC, c.subject ASC
+        """, (student_id,))
+
+        rows = cur.fetchall()
+
+        if not rows:
+            return jsonify(ok=True, details=[], msg="성적 정보가 없습니다.")
+
+        # 문자형 등급을 숫자로 병행 표시
+        grade_map = {
+            "A+": 4.5, "A": 4.0, "B+": 3.5, "B": 3.0,
+            "C+": 2.5, "C": 2.0, "D+": 1.5, "D": 1.0, "F": 0
+        }
+
+        for r in rows:
+            g = r["grade"]
+            # 등급이 문자라면 변환
+            if isinstance(g, str):
+                r["grade_point"] = grade_map.get(g.strip().upper(), None)
+            else:
+                try:
+                    r["grade_point"] = float(g)
+                except:
+                    r["grade_point"] = None
+
+            # credit을 float으로 통일
+            try:
+                r["credit"] = float(r["credit"])
+            except:
+                r["credit"] = 0.0
+
+        return jsonify(ok=True, details=rows)
+
+    except Exception as e:
+        print("[ERROR] /api/grades/detail:", e)
+        return jsonify(ok=False, msg=str(e)), 500
+    finally:
+        cur.close()
+        conn.close()
+
+@app.get("/api/graduation")
+def api_graduation_status():
+    """🎓 졸업요건 진행 상황 (3년제 기준: 총110 / 전공78 / 교양12)"""
+    student_id = session.get("uid")
+    if not student_id:
+        return jsonify(ok=False, msg="로그인 필요"), 401
+
+    conn = get_raw_conn(database=DB_NAME)
+    cur = conn.cursor(dictionary=True)
+
+    try:
+        # 🎯 졸업 기준
+        REQ_TOTAL = 110
+        REQ_MAJOR = 78
+        REQ_GED = 12
+
+        # ✅ 진로지도 제외 + 과목 중복 제거 + 전공/교양 구분
+        cur.execute("""
+            SELECT 
+                c.course_type,
+                SUM(c.credit) AS total_credit
+            FROM (
+                SELECT DISTINCT sc.class_id
+                FROM student_class sc
+                WHERE sc.student_id = CAST(%s AS CHAR)
+            ) AS uniq
+            JOIN class c ON uniq.class_id = c.id
+            WHERE (c.subject IS NULL OR c.subject NOT LIKE '%%진로지도%%')
+              AND c.course_type IS NOT NULL
+            GROUP BY c.course_type
+        """, (student_id,))
+
+        rows = cur.fetchall()
+
+        # 🎓 학점 누적
+        major_required = 0
+        major_elective = 0
+        general_credit = 0
+
+        for r in rows:
+            ctype = str(r["course_type"]).strip()
+            credit = float(r["total_credit"] or 0)
+
+            if "전필" in ctype:
+                major_required += credit
+            elif "전선" in ctype:
+                major_elective += credit
+            elif any(key in ctype for key in ["교양", "교필", "교선"]):
+                general_credit += credit
+
+        major_credit = major_required + major_elective
+        total_credit = major_credit + general_credit
+
+        # 📊 진행률 계산
+        progress_major = round((major_credit / REQ_MAJOR) * 100, 1)
+        progress_general = round((general_credit / REQ_GED) * 100, 1)
+        progress_total = round((total_credit / REQ_TOTAL) * 100, 1)
+
+        # ✅ JS와 맞는 구조로 반환
+        return jsonify(
+            ok=True,
+            graduation={
+                "major_required": major_required,
+                "major_elective": major_elective,
+                "general": general_credit,
+                "total_credit": total_credit,
+                "progress": {
+                    "major": progress_major,
+                    "general": progress_general,
+                    "total": progress_total
+                }
+            }
+        )
+
+    except Exception as e:
+        print("[ERROR] /api/graduation:", e)
+        return jsonify(ok=False, msg=str(e)), 500
+    finally:
+        cur.close()
+        conn.close()
+
+@app.get("/api/notices")
+def api_notices():
+    from pymongo import MongoClient
+    import os
+
+    client = MongoClient(os.getenv("MONGO_URI"))
+    db = client["depatement_db"]
+    col = db["web"]
+
+    # 최근 10개만
+    docs = list(col.find().sort("작성", -1).limit(10))
+    results = []
+    now = datetime.now()
+
+    for d in docs:
+        date_str = str(d.get("작성", ""))[:10]
+        try:
+            dt = datetime.strptime(date_str, "%Y-%m-%d")
+        except:
+            dt = now
+        # 최근 7일이면 NEW
+        badge = "NEW" if (now - dt).days <= 7 else ""
+        results.append({
+            "title": d.get("title", "제목 없음"),
+            "url": d.get("url", "#"),
+            "date": date_str,
+            "badge": badge
+        })
+
+    return jsonify(ok=True, notices=results)
+
+
+# 📋 전체보기용 API
+@app.get("/api/notices/all")
+def api_notices_all():
+    from pymongo import MongoClient
+    import os
+
+    client = MongoClient(os.getenv("MONGO_URI"))
+    db = client["depatement_db"]
+    col = db["web"]
+
+    docs = list(col.find().sort("작성", -1))
+    results = []
+    now = datetime.now()
+
+    for d in docs:
+        date_str = str(d.get("작성", ""))[:10]
+        try:
+            dt = datetime.strptime(date_str, "%Y-%m-%d")
+        except:
+            dt = now
+        badge = "NEW" if (now - dt).days <= 7 else ""
+        results.append({
+            "title": d.get("title", "제목 없음"),
+            "url": d.get("url", "#"),
+            "date": date_str,
+            "badge": badge
+        })
+
+    print("📋 전체 공지 개수:", len(results))
+    return jsonify(ok=True, notices=results)
 
 # ----------------------------
-# 7) HTML 페이지 라우팅
+# 7-C) eClass 과제 API
+# ----------------------------
+@app.get("/api/subjects")
+def api_subjects():
+    conn = get_raw_conn(database=DB_NAME)
+    cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT DISTINCT subject_name FROM assignments ORDER BY subject_name")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return jsonify([r["subject_name"] for r in rows])
+
+@app.get("/api/assignments/<subject>")
+def api_assignments(subject):
+    conn = get_raw_conn(database=DB_NAME)
+    cur = conn.cursor(dictionary=True)
+    cur.execute("""
+        SELECT id, subject_name, title, due_date, status, score
+        FROM assignments
+        WHERE subject_name = %s
+        ORDER BY due_date ASC
+    """, (subject,))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return jsonify(rows)
+
+@app.get("/api/assignments/due_soon")
+def api_due_soon():
+    conn = get_raw_conn(database=DB_NAME)
+    cur = conn.cursor(dictionary=True)
+    now = datetime.now()
+    soon = now + timedelta(days=30)   # 🔥 기존 7일 → 30일로 확장
+    cur.execute("""
+        SELECT subject_name, title, due_date, status
+        FROM assignments
+        WHERE due_date IS NOT NULL AND due_date BETWEEN %s AND %s
+        ORDER BY due_date ASC
+    """, (now, soon))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return jsonify(rows)
+
+# 모든 과제 보기
+@app.get("/api/assignments/all")
+def api_all_assignments():
+    conn = get_raw_conn(database=DB_NAME)
+    cur = conn.cursor(dictionary=True)
+    cur.execute("""
+        SELECT subject_name, title, due_date, status, score
+        FROM assignments
+        ORDER BY due_date ASC
+    """)
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return jsonify(rows)
+
+# 📘 자격증 관련 공지만 필터링
+@app.get("/api/certificates")
+def api_certificates():
+    """MongoDB 공지 중 자격증/시험 관련 제목만 필터링"""
+    from pymongo import MongoClient
+    import os
+    import re
+
+    client = MongoClient(os.getenv("MONGO_URI"))
+    db = client["depatement_db"]
+    col = db["web"]
+
+    # 🔍 필터링 키워드
+    keywords = ["자격증", "시험", "PCCE", "인증", "Certificate"]
+
+    # 🔍 title 필드에 위 단어 포함된 문서 검색
+    query = {"$or": [{"title": {"$regex": k, "$options": "i"}} for k in keywords]}
+
+    docs = list(col.find(query).sort("작성", -1))
+    results = []
+    now = datetime.now()
+
+    for d in docs:
+        date_str = str(d.get("작성", ""))[:10]
+        try:
+            dt = datetime.strptime(date_str, "%Y-%m-%d")
+        except:
+            dt = now
+        badge = "NEW" if (now - dt).days <= 7 else ""
+        results.append({
+            "title": d.get("title", "제목 없음"),
+            "url": d.get("url", "#"),
+            "date": date_str,
+            "badge": badge
+        })
+
+    print("📘 자격증 관련 공지 개수:", len(results))
+    return jsonify(ok=True, certificates=results)
+
+# ----------------------------
+# 8) HTML 페이지 라우팅
 # ----------------------------
 @app.get("/")
 def main_page():
     return send_from_directory("templates", "main.html")
 
-@app.get("/login")
-def login_page():
+@app.get("/login.html")
+def login_html():
     return send_from_directory("templates", "login.html")
 
-@app.get("/signup")
+@app.get("/signup.html")
 def signup_page():
     return send_from_directory("templates", "signup.html")
 
-@app.get("/guest")
+@app.get("/guest.html")
 def guest_page():
     return send_from_directory("templates", "guest.html")
 
@@ -228,10 +847,17 @@ def guest_page():
 def favicon():
     return ("", 204)
 
+@app.get("/feature.html")
+def feature_page():
+    from flask import send_from_directory
+    return send_from_directory("templates", "feature.html")
+
+
 # ----------------------------
-# 8) 서버 시작
+# 9) 서버 시작
 # ----------------------------
 if __name__ == "__main__":
     init_db()
-    print(f"🚀 Flask + FastAPI 프록시 통합 서버 실행 중: http://127.0.0.1:{PORT}")
-    app.run(host="0.0.0.0", port=PORT, debug=True)
+    print(f"🚀 Flask 서버 실행 중: http://127.0.0.1:{PORT}")
+    app.run(host="0.0.0.0", port=8001, debug=True)
+

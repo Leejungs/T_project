@@ -376,17 +376,21 @@ async def voice_chat(file: UploadFile = File(...)):
 # -----------------------------------------------------------------------------
 from rag.app import app as rag_app
 
+from rag.auto_index import ensure_index_ready
+from rag.ingest import ingest_all, embedder
+from rag.retriever import retrieve
+
 app.mount("/rag", rag_app, name="rag")
 
 
 # -----------------------------------------------------------------------------
 # Frontend - Mount Flask App as main UI
 # -----------------------------------------------------------------------------
-from frontend.app import app as flask_app
+from front.app import app as flask_app
 from asgiref.wsgi import WsgiToAsgi
 
 # Mount the Flask app at the root. This will handle all UI routes.
-app.mount("/", WsgiToAsgi(flask_app), name="frontend")
+app.mount("/", WsgiToAsgi(flask_app), name="front")
 
 
 # -----------------------------------------------------------------------------

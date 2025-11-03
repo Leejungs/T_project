@@ -1,6 +1,6 @@
 # qa.py
 from typing import Dict
-from langchain.chains.retrieval_qa.base import RetrievalQA
+from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langchain_core.language_models import BaseChatModel
 from langchain_core.vectorstores import VectorStoreRetriever
